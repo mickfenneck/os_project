@@ -7,18 +7,16 @@
 #include <fcntl.h>
 #include <time.h>
 #include <signal.h>
-#include <pthread.h>
+#include <errno.h>
 #include "const.h"
-#include "client.h"
 
 
 long player_id;
 
 
-void signal_handler(int signo) {
-    shared->global_stop = 1;
-
-    int fifo = open(DISCONNECT_FIFO, O_WRONLY | O_NONBLOCK);
+void disconnect() {
+    printf("Disconnecting...\n");
+    int fifo = open(DISCONNECT_FIFO, O_WRONLY);
     write(fifo, &player_id, sizeof(player_id));
     close(fifo);
 }
@@ -38,10 +36,19 @@ long connect() {
     return player_id;
 }
 
+
+void signal_handler(int signo) {
+    disconnect();
+    player_id = -1;
+}
+
+
 void wait_challenge(char *challenge, int size) {
     int challenge_fifo = open(CHALLENGE_FIFO, O_RDONLY);
     int ret = read(challenge_fifo, challenge, size);
     close(challenge_fifo);
+
+    printf("wait - ret %d errno %d\n", ret, errno);
 
     if(ret < 0) {
         perror("read");
@@ -53,16 +60,15 @@ void wait_challenge(char *challenge, int size) {
 
 
 int main(int argc, char *argv[]) {
-    if(signal(SIGINT, signal_handler) == SIG_ERR ||
-            signal(SIGSEGV, signal_handler) == SIG_ERR) {  // happens too..
+    char buffer[CHALLENGE_LENGTH];
+
+    if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
         exit(-1);
     }
 
     connect();
-
-    char buffer[CHALLENGE_LENGTH];
-    while(!shared->global_stop) {
+    while(player_id >= 0) {
         printf("Waiting for challenge...\n");
         wait_challenge(buffer, sizeof(buffer));
         printf("Challenge received: %s\n", buffer);

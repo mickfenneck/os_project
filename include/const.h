@@ -1,3 +1,6 @@
+#ifndef __CONST_H__
+#define __CONST_H__
+
 #define CHALLENGE_FIFO "/tmp/sisop-challenge"
 #define ANSWER_FIFO "/tmp/sisop-answer"
 
@@ -16,3 +19,5 @@ struct a_pack_t {
 };
 
 typedef struct a_pack_t answer_pack_t;
+
+#endif
