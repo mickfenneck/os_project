@@ -45,7 +45,7 @@ long connect() {
 
 void signal_handler(int signo) {
     disconnect();
-    player_id = -1;
+    exit(-1);
 }
 
 
