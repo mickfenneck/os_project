@@ -28,9 +28,15 @@ long connect() {
     player_id = tp.tv_nsec;
     printf("Our player id is %lu\n", player_id);
 
+    int fifo;
     printf("Connecting to server...\n");
-    int connect_fifo = open(CONNECT_FIFO, O_WRONLY);
-    write(connect_fifo, &player_id, sizeof(player_id));
+    if((fifo = open(CONNECT_FIFO, O_WRONLY)) < 0) {
+        perror("open");
+        printf("No server running?\n");
+        exit(-1);
+    }
+    write(fifo, &player_id, sizeof(player_id));
+    close(fifo);
     printf("Connected!\n");
 
     return player_id;
@@ -44,9 +50,14 @@ void signal_handler(int signo) {
 
 
 void wait_challenge(char *challenge, int size) {
-    int challenge_fifo = open(CHALLENGE_FIFO, O_RDONLY);
-    int ret = read(challenge_fifo, challenge, size);
-    close(challenge_fifo);
+    int fifo = open(CHALLENGE_FIFO, O_RDONLY);
+    if(fifo < 0) {
+        perror("open");
+        exit(-1);
+    }
+
+    int ret = read(fifo, challenge, size);
+    close(fifo);
 
     printf("wait - ret %d errno %d\n", ret, errno);
 
@@ -59,8 +70,23 @@ void wait_challenge(char *challenge, int size) {
 }
 
 
+void send_answer(int answer) {
+    int fifo = open(ANSWER_FIFO, O_WRONLY);
+    if(fifo < 0) {
+        perror("open");
+        exit(-1);
+    }
+
+    answer_pack_t pack;
+    pack.answer = answer;
+    pack.player_id = player_id;
+    write(fifo, &pack, sizeof(pack));
+    close(fifo);
+}
+
+
 int main(int argc, char *argv[]) {
-    char buffer[CHALLENGE_LENGTH];
+    char challenge[CHALLENGE_LENGTH];
 
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
@@ -70,8 +96,13 @@ int main(int argc, char *argv[]) {
     connect();
     while(player_id >= 0) {
         printf("Waiting for challenge...\n");
-        wait_challenge(buffer, sizeof(buffer));
-        printf("Challenge received: %s\n", buffer);
+        wait_challenge(challenge, sizeof(challenge));
+        printf("Challenge received: %s\n", challenge);
+
+        int answer;
+        printf("Enter answer: ");
+        scanf("%d", &answer);
+        send_answer(answer);
     }
 
     return 0;

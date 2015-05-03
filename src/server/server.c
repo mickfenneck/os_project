@@ -9,10 +9,13 @@
 #include <errno.h>
 #include "const.h"
 
+#define MIN_PLAYERS 1
+
 
 struct p_info_t {
-    int score;
     long int player_id;
+    int score;
+    int answer;
 
     struct p_info_t *next;
     struct p_info_t *prev;
@@ -37,7 +40,7 @@ void signal_handler(int signo) {
 }
 
 
-void init_fifo(int *connect_fifo, int *disconnect_fifo) {
+void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo) {
     int MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
     if(mkfifo(CHALLENGE_FIFO, MODE) != 0 ||
@@ -46,11 +49,13 @@ void init_fifo(int *connect_fifo, int *disconnect_fifo) {
             mkfifo(DISCONNECT_FIFO, MODE) != 0) {
 
         perror("mkfifo");
+        printf("Another server running?\n");
         exit(-1);
     }
 
     if((*connect_fifo = open(CONNECT_FIFO, O_RDONLY | O_NONBLOCK)) < 0 ||
-        (*disconnect_fifo = open(DISCONNECT_FIFO, O_RDONLY | O_NONBLOCK)) < 0) {
+        (*disconnect_fifo = open(DISCONNECT_FIFO, O_RDONLY | O_NONBLOCK)) < 0 ||
+        (*answer_fifo = open(ANSWER_FIFO, O_RDONLY | O_NONBLOCK)) < 0) {
 
         perror("open");
         shutdown();
@@ -122,7 +127,7 @@ player_info_t *wait_for_players(player_info_t *players, int connect_fifo,
     int count;
 
     do {
-        printf("Waiting for players, minimum 2, connected %d...\n", count);
+        printf("Waiting for players, minimum %d, connected %d...\n", MIN_PLAYERS, count);
         sleep(5);
 
         players = accept_connection(players, connect_fifo);
@@ -134,7 +139,7 @@ player_info_t *wait_for_players(player_info_t *players, int connect_fifo,
             count += 1;
             cursor = cursor->next;
         }
-    } while(count < 1);
+    } while(count < MIN_PLAYERS);
 
     return players;
 }
@@ -153,18 +158,73 @@ void send_challenge(const char *challenge, int size, const player_info_t *player
 }
 
 
-player_info_t *play(player_info_t *players, int connection_fifo, int disconnection_fifo) {
-    char *msg = "CIAO";
+int accept_answer(player_info_t *players,  int fifo) {
+    int ret, count = 0;
+    answer_pack_t answer;
 
-    while(1) {
-        send_challenge(msg, strlen(msg) + 1, players);
+    while((ret = read(fifo, &answer, sizeof(answer))) > 0) {
+        printf("answer - ret %d errno %d\n", ret, errno);
 
-        printf("Challenge sent, sleeping...\n");
-        sleep(5);
+        player_info_t *cursor = players;
+        while(cursor && cursor->player_id != answer.player_id)
+            cursor = cursor->next;
 
-        players = accept_connection(players, connection_fifo);
-        players = accept_disconnection(players, disconnection_fifo);
+        if(cursor) {
+            cursor->answer = answer.answer;
+            printf("Received answer %d from player %lu\n", answer.answer,
+                   answer.player_id);
+            count += 1;
+        }
+        else printf("Received answer from unknown player %lu\n", answer.player_id);
     }
+
+    return count;
+}
+
+
+int count_players(player_info_t *players) {
+    player_info_t *cursor = players;
+    int count = 0;
+
+    while(cursor) {
+        cursor = cursor->next;
+        count += 1;
+    }
+
+    return count;
+}
+
+
+player_info_t *play(player_info_t *players, int connection_fifo, int disconnection_fifo,
+                    int answer_fifo)
+{
+    char challenge[10];
+    int player_count, i = 0;
+
+    do {
+        player_count = count_players(players);
+
+        sprintf(challenge, "Challenge number %d", i++);
+        send_challenge(challenge, strlen(challenge) + 1, players);
+        printf("Challenge sent, waiting for answers...\n");
+
+        // wait until we received an answer from everyone (and update who "everyone" is)
+        int answer_count = 0;
+        while(answer_count < player_count && player_count >= MIN_PLAYERS) {
+            answer_count += accept_answer(players, answer_fifo);
+
+            // players who connect now will not receive this challenge
+            players = accept_connection(players, connection_fifo);
+
+            int connected = count_players(players);
+            players = accept_disconnection(players, disconnection_fifo);
+            int disconnected = connected - count_players(players);
+
+            player_count -= disconnected;  // don't wait answers for disconnected players
+
+            sleep(1);
+        }
+    } while(player_count >= MIN_PLAYERS);
 
     return players;
 }
@@ -177,11 +237,11 @@ int main(int argc, char *argv[]) {
     }
 
     player_info_t *players = NULL;
-    int connect_fifo, disconnect_fifo;
+    int connect_fifo, disconnect_fifo, answer_fifo;
 
-    init_fifo(&connect_fifo, &disconnect_fifo);
+    init_fifo(&connect_fifo, &disconnect_fifo, &answer_fifo);
     players = wait_for_players(players, connect_fifo, disconnect_fifo);
-    play(players, connect_fifo, disconnect_fifo);
+    play(players, connect_fifo, disconnect_fifo, answer_fifo);
     shutdown();
 
     return 0;
