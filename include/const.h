@@ -13,21 +13,20 @@
 // useful macro for debugging
 #ifdef DEBUG
     #define debug(fmt, ...) \
-        fprintf(stderr, "[debug - %s]", __func__); \
+        fprintf(stderr, "[debug - %s] ", __func__); \
         fprintf(stderr, fmt, ##__VA_ARGS__);
 #else
     #define debug(fmt, ...)
 #endif
 
+typedef struct {
+    int x;
+    int y;
+} challenge_pack_t;
 
-struct a_pack_t {
-    // filled by client
+
+typedef struct {
     long player_id;
     int answer;
-
-    struct a_pack_t *next;  // filled by server
-};
-
-typedef struct a_pack_t answer_pack_t;
-
+} answer_pack_t;
 #endif

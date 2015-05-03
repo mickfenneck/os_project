@@ -15,7 +15,7 @@ long player_id;
 
 
 void disconnect() {
-    printf("Disconnecting...\n");
+    printf("\nDisconnecting...\n");
     int fifo = open(DISCONNECT_FIFO, O_WRONLY);
     write(fifo, &player_id, sizeof(player_id));
     close(fifo);
@@ -49,14 +49,14 @@ void signal_handler(int signo) {
 }
 
 
-void wait_challenge(char *challenge, int size) {
+void wait_challenge(challenge_pack_t *challenge) {
     int fifo = open(CHALLENGE_FIFO, O_RDONLY);
     if(fifo < 0) {
         perror("open");
         exit(-1);
     }
 
-    int ret = read(fifo, challenge, size);
+    int ret = read(fifo, challenge, sizeof(challenge_pack_t));
     close(fifo);
 
     debug("ret %d errno %d\n", ret, errno);
@@ -86,8 +86,6 @@ void send_answer(int answer) {
 
 
 int main(int argc, char *argv[]) {
-    char challenge[CHALLENGE_LENGTH];
-
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
         exit(-1);
@@ -95,9 +93,11 @@ int main(int argc, char *argv[]) {
 
     connect();
     while(player_id >= 0) {
+        challenge_pack_t challenge;
+
         printf("Waiting for challenge...\n");
-        wait_challenge(challenge, sizeof(challenge));
-        printf("Challenge received: %s\n", challenge);
+        wait_challenge(&challenge);
+        printf("Challenge received: %d + %d\n", challenge.x, challenge.y);
 
         int answer;
         printf("Enter answer: ");
