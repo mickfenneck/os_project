@@ -59,7 +59,7 @@ void wait_challenge(char *challenge, int size) {
     int ret = read(fifo, challenge, size);
     close(fifo);
 
-    printf("wait - ret %d errno %d\n", ret, errno);
+    debug("ret %d errno %d\n", ret, errno);
 
     if(ret < 0) {
         perror("read");

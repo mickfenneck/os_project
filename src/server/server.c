@@ -12,6 +12,7 @@
 #define MIN_PLAYERS 1  // minimum number of players needed to start the game
 #define MAX_PLAYERS 10  // maximum number of connected players
 
+
 struct p_info_t {
     long int player_id;
     int score;
@@ -66,7 +67,7 @@ void accept_connection(player_info_t *players, int *player_count, int fifo) {
     long player_id;
 
     while((ret = read(fifo, &player_id, sizeof(player_id))) > 0) {
-        printf("connect - ret %d errno %d\n", ret, errno);
+        debug("ret %d errno %d\n", ret, errno);
 
         if(*player_count < MAX_PLAYERS) {
             players[*player_count].score = 0;
@@ -88,7 +89,7 @@ void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
     long player_id;
 
     while((ret = read(fifo, &player_id, sizeof(player_id))) > 0) {
-        printf("disconnect - ret %d errno %d\n", ret, errno);
+        debug("ret %d errno %d\n", ret, errno);
 
         // find player who disconnected
         int i = 0;
@@ -107,7 +108,6 @@ void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
             printf("disconnect - received disconnection from unknown player: %lu\n",
                    player_id);
         }
-            
     }
 }
 
@@ -145,7 +145,7 @@ int accept_answer(player_info_t *players,  int *player_count, int fifo) {
     answer_pack_t pack;
 
     while((ret = read(fifo, &pack, sizeof(pack))) > 0) {
-        printf("answer - ret %d errno %d\n", ret, errno);
+        debug("ret %d errno %d\n", ret, errno);
 
         int i = 0;
         while(i < *player_count && players[i].player_id != pack.player_id)

@@ -10,6 +10,16 @@
 #define CHALLENGE_LENGTH 25
 #define ANSWER_LENGTH 25
 
+// useful macro for debugging
+#ifdef DEBUG
+    #define debug(fmt, ...) \
+        fprintf(stderr, "[debug - %s]", __func__); \
+        fprintf(stderr, fmt, ##__VA_ARGS__);
+#else
+    #define debug(fmt, ...)
+#endif
+
+
 struct a_pack_t {
     // filled by client
     long player_id;
