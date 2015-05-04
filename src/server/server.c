@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
-#include <assert.h>
 #include <time.h>
 #include "const.h"
 
@@ -22,7 +21,25 @@ typedef struct p_info_t {
 } player_info_t;
 
 
+void shutdown();
+void signal_handler(int signo);
+void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo);
+void accept_connection(player_info_t *players, int *player_count, int fifo);
+void accept_disconnection(player_info_t *players, int *player_count, int fifo);
+void wait_for_players(player_info_t *players, int *player_count, int connect_fifo,
+    int disconnect_fifo);
+void send_challenge(challenge_pack_t *challenge, int player_count);
+int accept_answer(player_info_t *players, int player_count, int fifo);
+void get_challenge(challenge_pack_t *challenge);
+void assign_points(player_info_t *players, int player_count, int correct);
+void print_ranking(player_info_t *players, int player_count);
+player_info_t *play(player_info_t *players, int *player_count, int connection_fifo,
+                    int disconnection_fifo, int answer_fifo);
+
+
 void shutdown() {
+    send_challenge(&SERVER_QUIT_PACK, MAX_PLAYERS);
+
     printf("Destroying FIFOs...\n");
     unlink(CHALLENGE_FIFO);
     unlink(ANSWER_FIFO);
@@ -103,7 +120,7 @@ void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
                 i += 1;
             }
             *player_count -= 1;
-            assert(*player_count >= 0);
+            printf("Player %lu disconnected\n", player_id);
         }
         else {
             printf("disconnect - received disconnection from unknown player: %lu\n",
@@ -128,9 +145,9 @@ void wait_for_players(player_info_t *players, int *player_count, int connect_fif
 
 
 void send_challenge(challenge_pack_t *challenge, int player_count) {
-    int i, fifo = open(CHALLENGE_FIFO, O_WRONLY);
+    int i, fifo = open(CHALLENGE_FIFO, O_WRONLY | O_NONBLOCK);
     for(i = 0; i < player_count; i++)
-        assert(write(fifo, challenge, sizeof(challenge_pack_t)) > 0);
+        write(fifo, challenge, sizeof(challenge_pack_t));
     close(fifo);
 }
 
@@ -178,6 +195,9 @@ void assign_points(player_info_t *players, int player_count, int correct) {
 
 
 void print_ranking(player_info_t *players, int player_count) {
+    if(player_count == 0)
+        return;
+
     // sort players by score
     int i, j;
     player_info_t temp;
@@ -191,9 +211,9 @@ void print_ranking(player_info_t *players, int player_count) {
         }
     }
 
-    printf("Updated ranking\n");
+    printf("***  Updated ranking  ***\n");
     for(i = 0; i < player_count; i++)
-        printf("Player %lu - Score %d\n", players[i].player_id, players[i].score);
+        printf("\tPlayer %lu - Score %d\n", players[i].player_id, players[i].score);
 }
 
 

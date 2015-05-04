@@ -16,7 +16,7 @@ long player_id;
 
 void disconnect() {
     printf("\nDisconnecting...\n");
-    int fifo = open(DISCONNECT_FIFO, O_WRONLY);
+    int fifo = open(DISCONNECT_FIFO, O_WRONLY | O_NONBLOCK);
     write(fifo, &player_id, sizeof(player_id));
     close(fifo);
 }
@@ -74,6 +74,7 @@ void send_answer(int answer) {
     int fifo = open(ANSWER_FIFO, O_WRONLY);
     if(fifo < 0) {
         perror("open");
+        printf("Server has quit?\n");
         exit(-1);
     }
 
@@ -97,12 +98,18 @@ int main(int argc, char *argv[]) {
 
         printf("Waiting for challenge...\n");
         wait_challenge(&challenge);
-        printf("Challenge received: %d + %d\n", challenge.x, challenge.y);
 
-        int answer;
-        printf("Enter answer: ");
-        scanf("%d", &answer);
-        send_answer(answer);
+        if(challenge.x == SERVER_QUIT_PACK.x && challenge.y == SERVER_QUIT_PACK.y) {
+            printf("Server has ended the game.\n");
+            player_id = -1;
+        }
+        else {
+            printf("Challenge received: %d + %d\n", challenge.x, challenge.y);
+            int answer;
+            printf("Enter answer: ");
+            scanf("%d", &answer);
+            send_answer(answer);
+        }
     }
 
     return 0;
