@@ -34,7 +34,7 @@ int accept_answer(player_info_t *players, int player_count, int fifo);
 void get_challenge(challenge_pack_t *challenge);
 void assign_points(player_info_t *players, int player_count, int correct);
 void print_ranking(player_info_t *players, int player_count);
-player_info_t *play(player_info_t *players, int *player_count, int connection_fifo,
+void play(player_info_t *players, int *player_count, int connection_fifo,
     int disconnection_fifo, int answer_fifo);
 
 
@@ -89,15 +89,16 @@ void accept_connection(player_info_t *players, int *player_count, int fifo) {
         debug("ret %d errno %d\n", ret, errno);
 
         if(*player_count < MAX_PLAYERS) {
-            players[*player_count].score = 0;
             players[*player_count].player_id = player_id;
             players[*player_count].score = MAX_PLAYERS - *player_count - 1;
 
-            // don't wait for an answer if player has connected when a challenge was already sent
+            // don't wait for an answer if player has connected when a challenge
+            // was already sent
             players[*player_count].has_answered = 1;
             *player_count += 1;
 
-            printf("Player %lu connected\n", player_id);
+            printf("Player %lu connected (%d players connected)\n", player_id,
+                   *player_count);
         }
         else {
             printf("Rejecting connection from player %lu (too many connected players)\n",
@@ -124,7 +125,8 @@ void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
                 i += 1;
             }
             *player_count -= 1;
-            printf("Player %lu disconnected\n", player_id);
+            printf("Player %lu disconnected (%d players conneceted)\n", player_id,
+                   *player_count);
         }
         else {
             printf("disconnect - received disconnection from unknown player: %lu\n",
@@ -150,8 +152,10 @@ void wait_for_players(player_info_t *players, int *player_count, int connect_fif
 
 void send_challenge(challenge_pack_t *challenge, int player_count) {
     int i, fifo = open(CHALLENGE_FIFO, O_WRONLY | O_NONBLOCK);
-    for(i = 0; i < player_count; i++)
+    for(i = 0; i < player_count; i++) {
         write(fifo, challenge, sizeof(challenge_pack_t));
+        debug("sent pack #%d\n", i);
+    }
     close(fifo);
 }
 
@@ -185,6 +189,7 @@ int accept_answer(player_info_t *players, int player_count, int fifo) {
 void get_challenge(challenge_pack_t *challenge) {
     challenge->x = rand() % 100;
     challenge->y = rand() % 100;
+    debug("challenge is %d + %d\n", challenge->x, challenge->y);
 }
 
 
@@ -222,8 +227,8 @@ void print_ranking(player_info_t *players, int player_count) {
 }
 
 
-player_info_t *play(player_info_t *players, int *player_count, int connection_fifo,
-                    int disconnection_fifo, int answer_fifo)
+void play(player_info_t *players, int *player_count, int connection_fifo,
+          int disconnection_fifo, int answer_fifo)
 {
     int i;
     do {
@@ -256,8 +261,6 @@ player_info_t *play(player_info_t *players, int *player_count, int connection_fi
         assign_points(players, *player_count, correct);
         print_ranking(players, *player_count);
     } while(*player_count >= MIN_PLAYERS);
-
-    return players;
 }
 
 
@@ -275,6 +278,8 @@ int main(int argc, char *argv[]) {
     init_fifo(&connect_fifo, &disconnect_fifo, &answer_fifo);
     wait_for_players(players, &player_count, connect_fifo, disconnect_fifo);
     play(players, &player_count, connect_fifo, disconnect_fifo, answer_fifo);
+
+    close(connect_fifo); close(disconnect_fifo); close(answer_fifo);
     shutdown();
 
     return 0;

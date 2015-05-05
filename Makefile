@@ -1,13 +1,16 @@
 DEBUG_FLAGS=-g -DDEBUG
-CFLAGS=-Wall -Werror -Iinclude/ -std=gnu99 -pedantic -pedantic-errors
+WARNING_FLAGS=-Wall -Werror -pedantic -pedantic-errors
+STD_FLAGS=-Iinclude/ -std=gnu99
+CFLAGS=$(STD_FLAGS) $(WARNING_FLAGS) $(DEBUG_FLAGS)
+ARCH_NAME=LABSO2015_Progetto_multiplayer_game_165907_164492.tar.gz
+all: clean bin
 
-all: clean server client
-
-server: src/server/* include/*
-	gcc $(CFLAGS) $(DEBUG_FLAGS) src/server/server.c -o bin/server.out
-
-client: src/client/* include/*
-	gcc $(CFLAGS) $(DEBUG_FLAGS) src/client/client.c -o bin/client.out
+bin: src/* include/*
+	gcc $(CFLAGS) src/server/server.c -o bin/server.out
+	gcc $(CFLAGS) src/client/client.c -o bin/client.out
 
 clean:
 	rm -rf bin/* /tmp/sisop-*
+
+consegna:
+	tar zcvf $(ARCH_NAME) src include Makefile
