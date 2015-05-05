@@ -16,8 +16,9 @@
 
 typedef struct p_info_t {
     long int player_id;
-    int answer;
     int score;
+    int answer;
+    int has_answered;
 } player_info_t;
 
 
@@ -34,7 +35,7 @@ void get_challenge(challenge_pack_t *challenge);
 void assign_points(player_info_t *players, int player_count, int correct);
 void print_ranking(player_info_t *players, int player_count);
 player_info_t *play(player_info_t *players, int *player_count, int connection_fifo,
-                    int disconnection_fifo, int answer_fifo);
+    int disconnection_fifo, int answer_fifo);
 
 
 void shutdown() {
@@ -91,6 +92,9 @@ void accept_connection(player_info_t *players, int *player_count, int fifo) {
             players[*player_count].score = 0;
             players[*player_count].player_id = player_id;
             players[*player_count].score = MAX_PLAYERS - *player_count - 1;
+
+            // don't wait for an answer if player has connected when a challenge was already sent
+            players[*player_count].has_answered = 1;
             *player_count += 1;
 
             printf("Player %lu connected\n", player_id);
@@ -165,6 +169,7 @@ int accept_answer(player_info_t *players, int player_count, int fifo) {
 
         if(i < player_count) {
             players[i].answer = pack.answer;
+            players[i].has_answered = 1;
             count += 1;
 
             printf("Received answer %d from player %lu\n", pack.answer,
@@ -220,7 +225,11 @@ void print_ranking(player_info_t *players, int player_count) {
 player_info_t *play(player_info_t *players, int *player_count, int connection_fifo,
                     int disconnection_fifo, int answer_fifo)
 {
+    int i;
     do {
+        for(i = 0; i < *player_count; i++)
+            players[i].has_answered = 0;
+
         challenge_pack_t challenge;
 
         get_challenge(&challenge);
@@ -228,22 +237,20 @@ player_info_t *play(player_info_t *players, int *player_count, int connection_fi
         printf("Challenge sent, waiting for answers...\n");
 
         // wait until we received an answer from everyone (and update who "everyone" is)
-        int answer_count = 0, needed_answers = *player_count;
-        while(answer_count < needed_answers && *player_count >= MIN_PLAYERS) {
-            answer_count += accept_answer(players, *player_count, answer_fifo);
+        int finished;
+        do {
+            accept_answer(players, *player_count, answer_fifo);
+
+            finished = 1;
+            for(i = 0; i < *player_count; i++)
+                finished &= players[i].has_answered;
 
             // players who connect now will not receive this challenge
             accept_connection(players, player_count, connection_fifo);
-
-            int connected = *player_count;
             accept_disconnection(players, player_count, disconnection_fifo);
-            int disconnected = connected - *player_count;
 
-            needed_answers -= disconnected;  // don't wait answers from disconnected players
-            // FIXME when a player gives an answer then disconnects another player
-            // FIXME will not be able give an answer for this challenge
             sleep(1);
-        }
+        } while(!finished);
 
         int correct = challenge.x + challenge.y;
         assign_points(players, *player_count, correct);

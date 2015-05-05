@@ -23,6 +23,7 @@ typedef struct {
     int x;
     int y;
 } challenge_pack_t;
+challenge_pack_t SERVER_QUIT_PACK = { .x = -1, .y = -1 };
 
 
 typedef struct {
