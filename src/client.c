@@ -13,14 +13,14 @@
 
 long player_id;
 
-void disconnect();
+static void disconnect();
 long connect();
-void signal_handler(int);
-void wait_challenge(challenge_pack_t *);
-void send_answer(int);
+static void signal_handler(int);
+static void wait_challenge(challenge_pack_t *);
+static void send_answer(int);
 
 
-void disconnect() {
+static void disconnect() {
     printf("\nDisconnecting...\n");
     int fifo = open(DISCONNECT_FIFO, O_WRONLY | O_NONBLOCK);
     write(fifo, &player_id, sizeof(player_id));
@@ -49,13 +49,13 @@ long connect() {
 }
 
 
-void signal_handler(int signo) {
+static void signal_handler(int signo) {
     disconnect();
     exit(-1);
 }
 
 
-void wait_challenge(challenge_pack_t *challenge) {
+static void wait_challenge(challenge_pack_t *challenge) {
     int fifo = open(CHALLENGE_FIFO, O_RDONLY);
     if(fifo < 0) {
         perror("open");
@@ -76,7 +76,7 @@ void wait_challenge(challenge_pack_t *challenge) {
 }
 
 
-void send_answer(int answer) {
+static void send_answer(int answer) {
     int fifo = open(ANSWER_FIFO, O_WRONLY);
     if(fifo < 0) {
         perror("open");
@@ -119,9 +119,4 @@ int client_main() {
     }
 
     return 0;
-}
-
-
-int main(int argc, char *argv[]) {
-    return client_main();
 }

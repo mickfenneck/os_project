@@ -11,8 +11,9 @@
 #include "const.h"
 
 #define MIN_PLAYERS 1  // minimum number of players needed to start the game
-#define MAX_PLAYERS 10  // maximum number of connected players
-#define WIN_SCORE 15
+#define MAX_PLAYERS 10  // maximum allowed number of connected players
+
+challenge_pack_t SERVER_QUIT_PACK = { .x = -1, .y = -1 };
 
 typedef struct p_info_t {
     long int player_id;
@@ -22,21 +23,21 @@ typedef struct p_info_t {
 } player_info_t;
 
 
-void shutdown();
-void signal_handler(int);
-void init_fifo(int *, int *, int *);
-void accept_connection(player_info_t *, int *, int, int);
-void accept_disconnection(player_info_t *, int *, int);
-void wait_for_players(player_info_t *, int *, int, int, int);
-void send_challenge(challenge_pack_t *, int);
-int accept_answer(player_info_t *, int, int);
-void get_challenge(challenge_pack_t *);
-void assign_points(player_info_t *, int, int);
-int print_ranking(player_info_t *, int);
-void play(player_info_t *players, int *, int, int, int, int, int);
+static void shutdown();
+static void signal_handler(int);
+static void init_fifo(int *, int *, int *);
+static void accept_connection(player_info_t *, int *, int, int);
+static void accept_disconnection(player_info_t *, int *, int);
+static void wait_for_players(player_info_t *, int *, int, int, int);
+static void send_challenge(challenge_pack_t *, int);
+static int accept_answer(player_info_t *, int, int);
+static void get_challenge(challenge_pack_t *);
+static void assign_points(player_info_t *, int, int);
+static int print_ranking(player_info_t *, int);
+static void play(player_info_t *players, int *, int, int, int, int, int);
 
 
-void shutdown() {
+static void shutdown() {
     send_challenge(&SERVER_QUIT_PACK, MAX_PLAYERS);
 
     printf("Destroying FIFOs...\n");
@@ -49,13 +50,13 @@ void shutdown() {
 }
 
 
-void signal_handler(int signo) {
+static void signal_handler(int signo) {
     printf("Shutting down\n");
     shutdown();
 }
 
 
-void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo) {
+static void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo) {
     int MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
     if(mkfifo(CHALLENGE_FIFO, MODE) != 0 ||
@@ -79,7 +80,7 @@ void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo) {
 }
 
 
-void accept_connection(player_info_t *players, int *player_count, int fifo, int max_players) {
+static void accept_connection(player_info_t *players, int *player_count, int fifo, int max_players) {
     int ret;
     long player_id;
 
@@ -106,7 +107,7 @@ void accept_connection(player_info_t *players, int *player_count, int fifo, int 
 }
 
 
-void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
+static void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
     int ret;
     long player_id;
 
@@ -134,7 +135,7 @@ void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
 }
 
 
-void wait_for_players(player_info_t *players, int *player_count, int connect_fifo,
+static void wait_for_players(player_info_t *players, int *player_count, int connect_fifo,
     int disconnect_fifo, int max_players)
 {
     do {
@@ -148,7 +149,7 @@ void wait_for_players(player_info_t *players, int *player_count, int connect_fif
 }
 
 
-void send_challenge(challenge_pack_t *challenge, int player_count) {
+static void send_challenge(challenge_pack_t *challenge, int player_count) {
     int i, fifo = open(CHALLENGE_FIFO, O_WRONLY | O_NONBLOCK);
     for(i = 0; i < player_count; i++) {
         write(fifo, challenge, sizeof(challenge_pack_t));
@@ -158,7 +159,7 @@ void send_challenge(challenge_pack_t *challenge, int player_count) {
 }
 
 
-int accept_answer(player_info_t *players, int player_count, int fifo) {
+static int accept_answer(player_info_t *players, int player_count, int fifo) {
     int ret, count = 0;
     answer_pack_t pack;
 
@@ -184,14 +185,14 @@ int accept_answer(player_info_t *players, int player_count, int fifo) {
 }
 
 
-void get_challenge(challenge_pack_t *challenge) {
+static void get_challenge(challenge_pack_t *challenge) {
     challenge->x = rand() % 100;
     challenge->y = rand() % 100;
     debug("challenge is %d + %d\n", challenge->x, challenge->y);
 }
 
 
-void assign_points(player_info_t *players, int player_count, int correct) {
+static void assign_points(player_info_t *players, int player_count, int correct) {
     int i;
     for(i = 0; i < player_count; i++) {
         if(players[i].answer == correct)
@@ -202,7 +203,7 @@ void assign_points(player_info_t *players, int player_count, int correct) {
 }
 
 
-int print_ranking(player_info_t *players, int player_count) {
+static int print_ranking(player_info_t *players, int player_count) {
     if(player_count == 0)
         return -1;
 
@@ -227,7 +228,7 @@ int print_ranking(player_info_t *players, int player_count) {
 }
 
 
-void play(player_info_t *players, int *player_count, int connection_fifo,
+static void play(player_info_t *players, int *player_count, int connection_fifo,
           int disconnection_fifo, int answer_fifo, int max_players, int win_score)
 {
     int i, high_score;
@@ -265,13 +266,16 @@ void play(player_info_t *players, int *player_count, int connection_fifo,
 
 
 int server_main(int max_players, int win_score) {
+    player_info_t players[max_players];
+    int connect_fifo, disconnect_fifo, answer_fifo, player_count = 0;
+
+    printf("Accepting at most %d players, victory score is %d\n",
+           max_players, win_score);
+
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
         exit(-1);
     }
-
-    player_info_t players[max_players];
-    int connect_fifo, disconnect_fifo, answer_fifo, player_count = 0;
 
     srand(time(NULL));
 
@@ -284,9 +288,4 @@ int server_main(int max_players, int win_score) {
     shutdown();
 
     return 0;
-}
-
-
-int main(int argc, char *argv[]) {
-    server_main(MAX_PLAYERS, WIN_SCORE);
 }
