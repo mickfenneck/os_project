@@ -13,6 +13,12 @@
 
 long player_id;
 
+void disconnect();
+long connect();
+void signal_handler(int);
+void wait_challenge(challenge_pack_t *);
+void send_answer(int);
+
 
 void disconnect() {
     printf("\nDisconnecting...\n");
@@ -86,7 +92,7 @@ void send_answer(int answer) {
 }
 
 
-int main(int argc, char *argv[]) {
+int client_main() {
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
         exit(-1);
@@ -113,4 +119,9 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+
+int main(int argc, char *argv[]) {
+    return client_main();
 }

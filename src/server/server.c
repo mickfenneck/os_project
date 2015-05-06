@@ -12,7 +12,7 @@
 
 #define MIN_PLAYERS 1  // minimum number of players needed to start the game
 #define MAX_PLAYERS 10  // maximum number of connected players
-
+#define WIN_SCORE 15
 
 typedef struct p_info_t {
     long int player_id;
@@ -23,19 +23,17 @@ typedef struct p_info_t {
 
 
 void shutdown();
-void signal_handler(int signo);
-void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo);
-void accept_connection(player_info_t *players, int *player_count, int fifo);
-void accept_disconnection(player_info_t *players, int *player_count, int fifo);
-void wait_for_players(player_info_t *players, int *player_count, int connect_fifo,
-    int disconnect_fifo);
-void send_challenge(challenge_pack_t *challenge, int player_count);
-int accept_answer(player_info_t *players, int player_count, int fifo);
-void get_challenge(challenge_pack_t *challenge);
-void assign_points(player_info_t *players, int player_count, int correct);
-void print_ranking(player_info_t *players, int player_count);
-void play(player_info_t *players, int *player_count, int connection_fifo,
-    int disconnection_fifo, int answer_fifo);
+void signal_handler(int);
+void init_fifo(int *, int *, int *);
+void accept_connection(player_info_t *, int *, int, int);
+void accept_disconnection(player_info_t *, int *, int);
+void wait_for_players(player_info_t *, int *, int, int, int);
+void send_challenge(challenge_pack_t *, int);
+int accept_answer(player_info_t *, int, int);
+void get_challenge(challenge_pack_t *);
+void assign_points(player_info_t *, int, int);
+int print_ranking(player_info_t *, int);
+void play(player_info_t *players, int *, int, int, int, int, int);
 
 
 void shutdown() {
@@ -81,16 +79,16 @@ void init_fifo(int *connect_fifo, int *disconnect_fifo, int *answer_fifo) {
 }
 
 
-void accept_connection(player_info_t *players, int *player_count, int fifo) {
+void accept_connection(player_info_t *players, int *player_count, int fifo, int max_players) {
     int ret;
     long player_id;
 
     while((ret = read(fifo, &player_id, sizeof(player_id))) > 0) {
         debug("ret %d errno %d\n", ret, errno);
 
-        if(*player_count < MAX_PLAYERS) {
+        if(*player_count < max_players) {
             players[*player_count].player_id = player_id;
-            players[*player_count].score = MAX_PLAYERS - *player_count - 1;
+            players[*player_count].score = max_players - *player_count - 1;
 
             // don't wait for an answer if player has connected when a challenge
             // was already sent
@@ -137,14 +135,14 @@ void accept_disconnection(player_info_t *players, int *player_count, int fifo) {
 
 
 void wait_for_players(player_info_t *players, int *player_count, int connect_fifo,
-    int disconnect_fifo)
+    int disconnect_fifo, int max_players)
 {
     do {
         printf("Waiting for players, minimum %d, connected %d...\n",
                MIN_PLAYERS, *player_count);
         sleep(5);
 
-        accept_connection(players, player_count, connect_fifo);
+        accept_connection(players, player_count, connect_fifo, max_players);
         accept_disconnection(players, player_count, disconnect_fifo);
     } while(*player_count < MIN_PLAYERS);
 }
@@ -204,9 +202,9 @@ void assign_points(player_info_t *players, int player_count, int correct) {
 }
 
 
-void print_ranking(player_info_t *players, int player_count) {
+int print_ranking(player_info_t *players, int player_count) {
     if(player_count == 0)
-        return;
+        return -1;
 
     // sort players by score
     int i, j;
@@ -224,13 +222,15 @@ void print_ranking(player_info_t *players, int player_count) {
     printf("***  Updated ranking  ***\n");
     for(i = 0; i < player_count; i++)
         printf("\tPlayer %lu - Score %d\n", players[i].player_id, players[i].score);
+
+    return players[0].score;
 }
 
 
 void play(player_info_t *players, int *player_count, int connection_fifo,
-          int disconnection_fifo, int answer_fifo)
+          int disconnection_fifo, int answer_fifo, int max_players, int win_score)
 {
-    int i;
+    int i, high_score;
     do {
         for(i = 0; i < *player_count; i++)
             players[i].has_answered = 0;
@@ -251,7 +251,7 @@ void play(player_info_t *players, int *player_count, int connection_fifo,
                 finished &= players[i].has_answered;
 
             // players who connect now will not receive this challenge
-            accept_connection(players, player_count, connection_fifo);
+            accept_connection(players, player_count, connection_fifo, max_players);
             accept_disconnection(players, player_count, disconnection_fifo);
 
             sleep(1);
@@ -259,28 +259,34 @@ void play(player_info_t *players, int *player_count, int connection_fifo,
 
         int correct = challenge.x + challenge.y;
         assign_points(players, *player_count, correct);
-        print_ranking(players, *player_count);
-    } while(*player_count >= MIN_PLAYERS);
+        high_score = print_ranking(players, *player_count);
+    } while(*player_count >= MIN_PLAYERS && high_score < win_score);
 }
 
 
-int main(int argc, char *argv[]) {
+int server_main(int max_players, int win_score) {
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
         exit(-1);
     }
 
-    player_info_t players[MAX_PLAYERS];
+    player_info_t players[max_players];
     int connect_fifo, disconnect_fifo, answer_fifo, player_count = 0;
 
     srand(time(NULL));
 
     init_fifo(&connect_fifo, &disconnect_fifo, &answer_fifo);
-    wait_for_players(players, &player_count, connect_fifo, disconnect_fifo);
-    play(players, &player_count, connect_fifo, disconnect_fifo, answer_fifo);
+    wait_for_players(players, &player_count, connect_fifo, disconnect_fifo, max_players);
+    play(players, &player_count, connect_fifo, disconnect_fifo, answer_fifo,
+         max_players, win_score);
 
     close(connect_fifo); close(disconnect_fifo); close(answer_fifo);
     shutdown();
 
     return 0;
+}
+
+
+int main(int argc, char *argv[]) {
+    server_main(MAX_PLAYERS, WIN_SCORE);
 }
