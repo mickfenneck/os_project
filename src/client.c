@@ -11,13 +11,19 @@
 #include "const.h"
 
 
-pid_t player_id;
+long player_id;
 
 static void disconnect();
 long connect();
 static void signal_handler(int);
 static void wait_challenge(challenge_pack_t *);
 static void send_answer(int);
+static int pack_eq(challenge_pack_t *, challenge_pack_t *);
+
+
+static int pack_eq(challenge_pack_t *p1, challenge_pack_t *p2) {
+    return p1->x == p2->x && p1->y == p2->y;
+}
 
 
 static void disconnect() {
@@ -29,8 +35,8 @@ static void disconnect() {
 
 
 long connect() {
-    player_id = getpid();
-    printf("Our player id is %d\n", player_id);
+    player_id = (long) getpid();
+    printf("Our player id is %lu\n", player_id);
 
     int fifo;
     printf("Connecting to server...\n");
@@ -87,6 +93,20 @@ static void send_answer(int answer) {
     pack.player_id = player_id;
     write(fifo, &pack, sizeof(pack));
     close(fifo);
+
+    debug("challenge sent - errno %d\n", errno);
+}
+
+
+static void print_ranking(player_info_t *players, int player_num, const char *caption) {
+    int i;
+
+    printf("*** %s ***\n", caption);
+    for(i = 0; i < player_num; i++) {
+        printf(players[i].player_id == player_id ? "   --> " : "       ");
+        printf("Player %lu - Score %d", players[i].player_id, players[i].score);
+        printf(players[i].player_id == player_id ? " <--\n" : "\n");
+    }
 }
 
 
@@ -98,19 +118,27 @@ int client_main() {
 
     connect();
     while(player_id >= 0) {
+        int answer;
         challenge_pack_t challenge;
 
-        printf("Waiting for challenge...\n");
+        printf("Waiting for challenge (CTRL+C to quit)...\n");
         wait_challenge(&challenge);
 
-        if(challenge.x == SERVER_QUIT_PACK.x && challenge.y == SERVER_QUIT_PACK.y) {
+        if(pack_eq(&challenge, &SERVER_QUIT_PACK)) {
             printf("Server has ended the game.\n");
             player_id = -1;
         }
+        else if(pack_eq(&challenge, &SERVER_VICTORY_PACK)) {
+            printf("\n\nMatch ended! Player %lu won!\n", challenge.ranking[0].player_id);
+            print_ranking(challenge.ranking, challenge.player_num, "Final Ranking");
+            disconnect();
+            break;
+        }
         else {
-            printf("Challenge received: %d + %d\n", challenge.x, challenge.y);
-            int answer;
-            printf("Enter answer: ");
+            printf("Challenge received!\n");
+            print_ranking(challenge.ranking, challenge.player_num, "Current Ranking");
+
+            printf("%d + %d = ", challenge.x, challenge.y);
             scanf("%d", &answer);
             send_answer(answer);
         }

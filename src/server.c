@@ -10,17 +10,9 @@
 #include <time.h>
 #include "const.h"
 
-#define MIN_PLAYERS 1  // minimum number of players needed to start the game
-#define MAX_PLAYERS 10  // maximum allowed number of connected players
 
 challenge_pack_t SERVER_QUIT_PACK = { .x = -1, .y = -1 };
-
-typedef struct p_info_t {
-    long int player_id;
-    int score;
-    int answer;
-    int has_answered;
-} player_info_t;
+challenge_pack_t SERVER_VICTORY_PACK = { .x = -2, .y = -2 };
 
 
 static void shutdown();
@@ -31,7 +23,7 @@ static void accept_disconnection(player_info_t *, int *, int);
 static void wait_for_players(player_info_t *, int *, int, int, int);
 static void send_challenge(challenge_pack_t *, int);
 static int accept_answer(player_info_t *, int, int);
-static void get_challenge(challenge_pack_t *);
+static void get_challenge(challenge_pack_t *, player_info_t *, int);
 static void assign_points(player_info_t *, int, int);
 static int print_ranking(player_info_t *, int);
 static void play(player_info_t *players, int *, int, int, int, int, int);
@@ -185,9 +177,14 @@ static int accept_answer(player_info_t *players, int player_count, int fifo) {
 }
 
 
-static void get_challenge(challenge_pack_t *challenge) {
+static void get_challenge(challenge_pack_t *challenge, player_info_t *players,
+    int player_num)
+{
     challenge->x = rand() % 100;
     challenge->y = rand() % 100;
+    challenge->player_num = player_num;
+    memcpy(challenge->ranking, players, sizeof(player_info_t) * player_num);
+
     debug("challenge is %d + %d\n", challenge->x, challenge->y);
 }
 
@@ -231,6 +228,8 @@ static int print_ranking(player_info_t *players, int player_count) {
 static void play(player_info_t *players, int *player_count, int connection_fifo,
           int disconnection_fifo, int answer_fifo, int max_players, int win_score)
 {
+    // players are kept sorted by score
+
     int i, high_score;
     do {
         for(i = 0; i < *player_count; i++)
@@ -238,7 +237,7 @@ static void play(player_info_t *players, int *player_count, int connection_fifo,
 
         challenge_pack_t challenge;
 
-        get_challenge(&challenge);
+        get_challenge(&challenge, players, *player_count);
         send_challenge(&challenge, *player_count);
         printf("Challenge sent, waiting for answers...\n");
 
@@ -262,6 +261,14 @@ static void play(player_info_t *players, int *player_count, int connection_fifo,
         assign_points(players, *player_count, correct);
         high_score = print_ranking(players, *player_count);
     } while(*player_count >= MIN_PLAYERS && high_score < win_score);
+
+    // send final ranking
+    if(high_score == win_score) {
+        printf("Match ended! Player %lu won!\n", players[0].player_id);
+        memcpy(&SERVER_VICTORY_PACK.ranking, players, sizeof(player_info_t) * (*player_count));
+        SERVER_VICTORY_PACK.player_num = *player_count;
+        send_challenge(&SERVER_VICTORY_PACK, *player_count);
+    }
 }
 
 
