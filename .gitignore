@@ -1,4 +1,6 @@
 *.swp
 *.out
+*.img
+*.tar.gz
 bin/*
 lib/*

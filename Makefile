@@ -19,5 +19,5 @@ client: src/client.c include/*
 clean:
 	rm -rf bin/* lib/* /tmp/sisop-*
 
-tar:
-	tar zcvf $(ARCH_NAME) src include Makefile
+tar: clean
+	tar zcvf $(ARCH_NAME) src include Makefile lib bin

@@ -11,7 +11,7 @@
 #include "const.h"
 
 
-long player_id;
+pid_t player_id;
 
 static void disconnect();
 long connect();
@@ -29,10 +29,8 @@ static void disconnect() {
 
 
 long connect() {
-    struct timespec tp;
-    clock_gettime(CLOCK_REALTIME, &tp);
-    player_id = tp.tv_nsec;
-    printf("Our player id is %lu\n", player_id);
+    player_id = getpid();
+    printf("Our player id is %d\n", player_id);
 
     int fifo;
     printf("Connecting to server...\n");
