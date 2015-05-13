@@ -14,7 +14,7 @@
 #ifdef DEBUG
     #define debug(fmt, ...) \
         fprintf(stderr, "[debug - %s] ", __func__); \
-        fprintf(stderr, fmt, ##__VA_ARGS__);
+        fprintf(stderr, fmt, __VA_ARGS__);
 #else
     #define debug(fmt, ...)
 #endif
