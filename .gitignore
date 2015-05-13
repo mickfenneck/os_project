@@ -2,5 +2,3 @@
 *.out
 *.img
 *.tar.gz
-bin/*
-lib/*
