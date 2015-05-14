@@ -17,7 +17,7 @@ client: src/client.c include/*
 	gcc $(CFLAGS) -c src/client.c -o lib/client.o
 
 clean:
-	rm -rf bin/* lib/* /tmp/sisop-*
+	rm -rf bin/* lib/* /tmp/sisop-* $(ARCH_NAME)
 
 tar: clean
 	tar zcvf $(ARCH_NAME) src include Makefile lib bin
