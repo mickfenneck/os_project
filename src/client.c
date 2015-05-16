@@ -82,7 +82,7 @@ static message_pack_t *wait_message(int type) {
         if(message->type & type) {
             // if needed, check that we are the recipient
             if(message->type & (MESSAGE_ANSWER_CORRECT | MESSAGE_ANSWER_WRONG)) {
-                if(message->payload.player_id == player_id)
+                if(message->player_id == player_id)
                     received = 1;
                 else handle_message(message);
             }
@@ -146,8 +146,8 @@ static void wait_challenge(int *x, int *y) {
     printf("Waiting for challenge...\n");
     message_pack_t *message = wait_message(MESSAGE_CHALLENGE);
 
-    *x = message->payload.x;
-    *y = message->payload.y;
+    *x = message->x;
+    *y = message->y;
 
     free(message);
 }
@@ -182,7 +182,7 @@ static void *supervisor_thread(void *arg) {
     debug("killing answer thread (tid %d)\n", (int)a->answer_tid);
     pthread_cancel(a->answer_tid);
 
-    a->winner_id = message->payload.player_id;
+    a->winner_id = message->player_id;
     free(message);
 
     return NULL;

@@ -37,11 +37,9 @@ typedef struct {
 
 typedef struct {
     int type;
-    union {
-        int x;
-        int y;
-        long player_id;
-    } payload;
+    int x;
+    int y;
+    long player_id;
 } message_pack_t;  // server -> client
 
 #endif

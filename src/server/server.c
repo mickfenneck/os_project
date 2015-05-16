@@ -19,7 +19,7 @@ static int player_count = 0;
 
 static void shutdown() {
     int i, ret;
-    message_pack_t message = { .type = MESSAGE_SERVER_QUIT, .payload.player_id = 0 };
+    message_pack_t message = { .type = MESSAGE_SERVER_QUIT, .player_id = 0 };
     for(i = 0; i < player_count; i++) {
         ret = write(players[i].fifo, &message, sizeof(message));
         debug("sent quit message to player %d, ret %d errno %d\n", i, ret, errno);
@@ -47,14 +47,14 @@ static void wait_for_players(int max_players) {
     } while(player_count < MIN_PLAYERS);
 }
 
-
 // send the challenge to all players
 static void send_challenge(int x, int y) {
     int i, ret;
-    message_pack_t message = { .type = MESSAGE_CHALLENGE, .payload.x = x, .payload.y = y };
+    message_pack_t message = { .type = MESSAGE_CHALLENGE, .x = x, .y = y };
 
     debug("sending challenge (%d, %d)\n", x, y);
     for(i = 0; i < player_count; i++) {
+        debug("send to fd %d, sizeof(message) = %lu\n", players[i].fifo, sizeof(message));
         ret = write(players[i].fifo, &message, sizeof(message));  // FIXME sometimes it kills program
         debug("sent challenge to player %d, ret %d errno %d\n", i, ret, errno);
     }
@@ -100,7 +100,7 @@ static int print_ranking() {
 static void play(int max_players, int win_score) {
     // players are kept sorted by score
 
-    int i, x, y, correct, answer;
+    int i, x, y, correct, answer, ret;
     message_pack_t message;
 
     do {
@@ -119,7 +119,7 @@ static void play(int max_players, int win_score) {
                 if(answer == correct) {
                     players[i].score += 1;
                     message.type = MESSAGE_ANSWER_CORRECT;
-                    message.payload.player_id = players[i].player_id;
+                    message.player_id = players[i].player_id;
                     write(players[i].fifo, &message, sizeof(message));
                     round_end = 1;
                     printf("Got correct answer from player %lu!\n", players[i].player_id);
@@ -127,7 +127,7 @@ static void play(int max_players, int win_score) {
                 else {
                     players[i].score -= 1;
                     message.type = MESSAGE_ANSWER_WRONG;
-                    message.payload.player_id = players[i].player_id;
+                    message.player_id = players[i].player_id;
                     write(players[i].fifo, &message, sizeof(message));
                     printf("Got wrong answer from player %lu!\n", players[i].player_id);
                 }
@@ -136,10 +136,10 @@ static void play(int max_players, int win_score) {
         } while(!round_end);
 
         message.type = MESSAGE_ROUND_END;
-        message.payload.player_id = players[i].player_id;
+        message.player_id = players[i].player_id;
         for(i = 0; i < player_count; i++) {
-            write(players[i].fifo, &message, sizeof(message));
-            debug("sent round end message to player %d\n", i);
+            ret = write(players[i].fifo, &message, sizeof(message));
+            debug("sent round end message to player %d, ret %d errno %d\n", i, ret, errno);
         }
     } while(1);
 }
@@ -161,7 +161,6 @@ int server_main(int max_players, int win_score) {
         return -1;
 
     wait_for_players(max_players);
-
     play(max_players, win_score);
 
     shutdown();

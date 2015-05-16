@@ -59,7 +59,7 @@ static void accept_connections(player_info_t *players, int *player_count, int ma
     while((ret = read(connect_fifo, &pack, sizeof(pack))) > 0) {
         debug("ret %d errno %d\n", ret, errno);
 
-        fd = open(pack.fifo, O_WRONLY | O_NONBLOCK);
+        fd = open(pack.fifo, O_RDWR | O_NONBLOCK);  // opening in read/write avoids SIGPIPE later
         if(fd < 0) {
             debug("cannot open write fifo %s for player %lu\n",
                 pack.fifo, pack.player_id);
@@ -74,7 +74,7 @@ static void accept_connections(player_info_t *players, int *player_count, int ma
                 players[*player_count].fifo = fd;
 
                 message.type = MESSAGE_CONNECTION_ACCEPTED;
-                message.payload.player_id = players[*player_count].player_id;
+                message.player_id = players[*player_count].player_id;
                 write(players[*player_count].fifo, &message, sizeof(message));
 
                 printf("Player %lu connected (%d players connected)\n",
@@ -83,7 +83,7 @@ static void accept_connections(player_info_t *players, int *player_count, int ma
             }
             else {
                 message.type = MESSAGE_CONNECTION_REJECTED;
-                message.payload.player_id = pack.player_id;
+                message.player_id = pack.player_id;
                 write(fd, &message, sizeof(message));
                 close(fd);
 
