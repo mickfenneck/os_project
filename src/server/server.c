@@ -54,8 +54,8 @@ static void send_challenge(int x, int y) {
 
     debug("sending challenge (%d, %d)\n", x, y);
     for(i = 0; i < player_count; i++) {
-        debug("send to fd %d, sizeof(message) = %lu\n", players[i].fifo, sizeof(message));
-        ret = write(players[i].fifo, &message, sizeof(message));  // FIXME sometimes it kills program
+        debug("sending to fd %d, sizeof(message) = %lu\n", players[i].fifo, sizeof(message));
+        ret = write(players[i].fifo, &message, sizeof(message));
         debug("sent challenge to player %d, ret %d errno %d\n", i, ret, errno);
     }
 }

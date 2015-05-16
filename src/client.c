@@ -231,6 +231,7 @@ void play_round(int x, int y) {
             if(message->type == MESSAGE_ANSWER_CORRECT) {
                 printf("Answer is correct!\n");
                 message = wait_message(MESSAGE_ROUND_END);
+                round_end = 1;
             }
             else {
                 printf("Wrong answer!\n");
