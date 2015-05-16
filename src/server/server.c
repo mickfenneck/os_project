@@ -40,7 +40,7 @@ static void wait_for_players(int max_players) {
     do {
         printf("Waiting for players, minimum %d, connected %d...\n",
                MIN_PLAYERS, player_count);
-        sleep(5);
+        sleep(2);
 
         accept_connections(players, &player_count, max_players);
         accept_disconnections(players, &player_count);
@@ -108,19 +108,21 @@ static void play(int max_players, int win_score) {
         send_challenge(x, y);
         printf("Challenge sent, waiting for answers...\n");
 
-        int round_end = 1;
+        int round_end = 0;
         do {
             accept_connections(players, &player_count, max_players);
             accept_disconnections(players, &player_count);
 
             i = accept_answer(players, player_count);
-            if(i > 0) {
+            if(i >= 0) {
                 answer = players[i].answer;
                 if(answer == correct) {
                     players[i].score += 1;
                     message.type = MESSAGE_ANSWER_CORRECT;
                     message.player_id = players[i].player_id;
-                    write(players[i].fifo, &message, sizeof(message));
+                    ret = write(players[i].fifo, &message, sizeof(message));
+                    debug("sent answer correct message to player %d, ret %d errno %d\n", i, ret, errno);
+
                     round_end = 1;
                     printf("Got correct answer from player %lu!\n", players[i].player_id);
                 }
@@ -128,12 +130,13 @@ static void play(int max_players, int win_score) {
                     players[i].score -= 1;
                     message.type = MESSAGE_ANSWER_WRONG;
                     message.player_id = players[i].player_id;
-                    write(players[i].fifo, &message, sizeof(message));
+                    ret = write(players[i].fifo, &message, sizeof(message));
+                    debug("sent answer incorrect message to player %d, ret %d errno %d\n", i, ret, errno);
                     printf("Got wrong answer from player %lu!\n", players[i].player_id);
                 }
             }
             else sleep(1);
-        } while(!round_end);
+        } while(!round_end && player_count > 0);
 
         message.type = MESSAGE_ROUND_END;
         message.player_id = players[i].player_id;
@@ -141,7 +144,7 @@ static void play(int max_players, int win_score) {
             ret = write(players[i].fifo, &message, sizeof(message));
             debug("sent round end message to player %d, ret %d errno %d\n", i, ret, errno);
         }
-    } while(1);
+    } while(player_count > 0);
 }
 
 

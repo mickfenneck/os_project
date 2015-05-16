@@ -155,15 +155,21 @@ static void wait_challenge(int *x, int *y) {
 
 // gets an answer from the playe 
 static void *answer_thread(void *arg) {
+    char buffer[32], *ptr;
+
     answer_thread_args_t *a = arg;
     int old_cancel_type;
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old_cancel_type);
 
     a->has_answer = 0;
-    printf("Challenge is %d + %d\nEnter your answer: ", a->x, a->y);
-    scanf("%d", &a->answer);
-    a->has_answer = 1;
 
+    do {
+        printf("Challenge is %d + %d\nEnter your answer: ", a->x, a->y);
+        fgets(buffer, sizeof(buffer), stdin);
+        a->answer = strtol(buffer, &ptr, 10);
+    } while(ptr[0] != '\n');
+
+    a->has_answer = 1;
     debug("killing supervisor thread (tid %d)\n", (int)a->supervisor_tid);
     pthread_cancel(a->supervisor_tid);
 
