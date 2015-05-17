@@ -13,8 +13,8 @@ bin: src/* lib/server.o lib/client.o include/*
 server: src/server/* include/*
 	gcc $(CFLAGS) -c src/server/server.c -o lib/server.o
 
-client: src/server/* include/*
-	gcc $(CFLAGS) -c src/client.c -o lib/client.o
+client: src/client/* include/*
+	gcc $(CFLAGS) -c src/client/client.c -o lib/client.o
 
 clean:
 	rm -rf bin/* lib/* /tmp/sisop-* $(ARCH_NAME)

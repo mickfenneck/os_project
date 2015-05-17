@@ -15,6 +15,7 @@
 #define MESSAGE_CONNECTION_ACCEPTED 1<<6
 #define MESSAGE_CONNECTION_REJECTED 1<<7
 #define MESSAGE_ROUND_END           1<<8
+#define MESSAGE_RANKING             1<<9
 
 // useful macro for debugging
 #ifdef DEBUG

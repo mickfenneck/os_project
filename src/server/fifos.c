@@ -7,13 +7,6 @@
 
 static int connect_fifo, disconnect_fifo, answer_fifo;
 
-static int fifo_init();
-static void fifo_destroy();
-static int accept_answer();
-static void accept_connections(player_info_t *players, int *player_count, int max_players);
-static void accept_disconnections(player_info_t *players, int *player_count);
-static int accept_answer(player_info_t *players, int player_count);
-
 
 // init fifos, returns 0 -> ok, -1 -> fatal
 static int fifo_init() {
@@ -59,7 +52,8 @@ static void accept_connections(player_info_t *players, int *player_count, int ma
     while((ret = read(connect_fifo, &pack, sizeof(pack))) > 0) {
         debug("ret %d errno %d\n", ret, errno);
 
-        fd = open(pack.fifo, O_RDWR | O_NONBLOCK);  // opening in read/write avoids SIGPIPE later
+        // opening in read/write avoids SIGPIPE later
+        fd = open(pack.fifo, O_RDWR | O_NONBLOCK);
         if(fd < 0) {
             debug("cannot open write fifo %s for player %lu\n",
                 pack.fifo, pack.player_id);
@@ -73,17 +67,17 @@ static void accept_connections(player_info_t *players, int *player_count, int ma
                 players[*player_count].score = max_players - *player_count - 1;
                 players[*player_count].fifo = fd;
 
-                message.type = MESSAGE_CONNECTION_ACCEPTED;
-                message.player_id = players[*player_count].player_id;
-                write(players[*player_count].fifo, &message, sizeof(message));
+                send_message(*player_count, MESSAGE_CONNECTION_ACCEPTED, 0, 0, -1);
 
                 printf("Player %lu connected (%d players connected)\n",
                     players[*player_count].player_id, *player_count + 1);
+
                 *player_count += 1;
             }
             else {
                 message.type = MESSAGE_CONNECTION_REJECTED;
                 message.player_id = pack.player_id;
+                message.x = message.y = 0;
                 write(fd, &message, sizeof(message));
                 close(fd);
 
