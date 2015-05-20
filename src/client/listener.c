@@ -21,13 +21,17 @@ static void *listener_thread(void *arg) {
             ret, errno);
         
         pthread_mutex_lock(&shared.mutex);
+        if(message->type == MESSAGE_SERVER_QUIT) {
+            shared.global_stop = 1;
+            pthread_mutex_unlock(&shared.mutex);
+        }
         stop = shared.global_stop;
         
         // put message in queue
         if(!shared.messages) {
             shared.messages = malloc(sizeof(message_queue_t));
             shared.messages->message = message;
-            shared.messages->next = shared.messages->prev = NULL;
+            shared.messages->next = NULL;
         }
         else {
             message_queue_t *cursor = shared.messages;
@@ -35,7 +39,6 @@ static void *listener_thread(void *arg) {
                 cursor = cursor->next;
             cursor->next = malloc(sizeof(message_queue_t));
             cursor->next->message = message;
-            cursor->next->prev = cursor;
             cursor->next->next = NULL;
         }        
         
@@ -47,7 +50,8 @@ static void *listener_thread(void *arg) {
         }
         pthread_mutex_unlock(&shared.mutex);
     } while(!stop);
-    
+
+    debug("listener thread has quit%s", "\n");
     return NULL;
 }
 
@@ -91,8 +95,12 @@ static message_pack_t *get_message(int type) {
         pthread_mutex_unlock(&shared.mutex);
         pthread_mutex_lock(&shared.waiting);
         
-        debug("woke up by listener, checking messages%s", "\n");
-        return get_from_old(type);
+        debug("woke up, checking messages%s", "\n");
+        pthread_mutex_lock(&shared.mutex);
+        message_pack_t *message = get_from_old(type);
+        pthread_mutex_unlock(&shared.mutex);
+
+        return message;
     }
 }
 
@@ -112,5 +120,6 @@ static void handle_message(message_pack_t *message) {
         handle_victory(message->player_id, message->x);
         free(message);
     }
+    else debug("ignoring a message of type %d\n", message->type);
 }
 

@@ -10,7 +10,7 @@ typedef struct {
 
 static void send_message(int player, int type, int x, int y, long player_id);
 
-#define MIN_PLAYERS 2  // minimum number of players needed to start the game
+#define MIN_PLAYERS 1  // minimum number of players needed to start the game
 #define MAX_PLAYERS 10  // maximum allowed number of connected players
 
 

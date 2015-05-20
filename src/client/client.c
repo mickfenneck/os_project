@@ -11,7 +11,7 @@
 #include "client.h"
 #include "const.h"
 #include "comms.c"
-#include "threads.c"
+#include "user_input.c"
 #include "listener.c"
 
 

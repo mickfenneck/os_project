@@ -1,6 +1,8 @@
 #ifndef __CONST_H__
 #define __CONST_H__
 
+#include <unistd.h>
+
 #define DISCONNECT_FIFO "/tmp/sisop-disconnect"
 #define CONNECT_FIFO "/tmp/sisop-connect"
 #define ANSWER_FIFO "/tmp/sisop-answer"
@@ -20,7 +22,7 @@
 // useful macro for debugging
 #ifdef DEBUG
     #define debug(fmt, ...) \
-        fprintf(stderr, "[debug - %s:%d] ", __func__, __LINE__); \
+        fprintf(stderr, "\t[%s:%d pid %d] ", __func__, __LINE__, getpid()); \
         fprintf(stderr, fmt, __VA_ARGS__);
 #else
     #define debug(fmt, ...)
