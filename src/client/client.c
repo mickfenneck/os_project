@@ -12,6 +12,7 @@
 #include "const.h"
 #include "comms.c"
 #include "threads.c"
+#include "listener.c"
 
 
 static void shutdown() {
@@ -37,7 +38,7 @@ static void signal_handler(int signo) {
 // waits for a challenge from the server
 static void wait_challenge(int *x, int *y) {
     printf("Waiting for challenge...\n");
-    message_pack_t *message = wait_message(MESSAGE_CHALLENGE);
+    message_pack_t *message = get_message(MESSAGE_CHALLENGE);
 
     *x = message->x;
     *y = message->y;
@@ -61,12 +62,12 @@ static void play_round(int x, int y) {
             write(fd, &pack, sizeof(pack));
             close(fd);
 
-            message = wait_message(MESSAGE_ANSWER_CORRECT | MESSAGE_ANSWER_WRONG);
+            message = get_message(MESSAGE_ANSWER_CORRECT | MESSAGE_ANSWER_WRONG);
 
             // wait_message has already checked that the message was directed at us
             if(message->type == MESSAGE_ANSWER_CORRECT) {
                 printf("Answer is correct!\n");
-                message = wait_message(MESSAGE_ROUND_END);
+                message = get_message(MESSAGE_ROUND_END);
                 round_end = 1;
             }
             else {
@@ -81,15 +82,32 @@ static void play_round(int x, int y) {
 }
 
 
-int client_main() {
+static int init() {
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         perror("signal");
-        exit(-1);
+        return 0;
     }
+    
+    shared.waiting_type = shared.global_stop = 0;
+    shared.messages = NULL;
+    pthread_mutex_init(&shared.mutex, NULL);
+    pthread_mutex_init(&shared.waiting, NULL);
+    pthread_mutex_lock(&shared.waiting);
+    
+    return 1;
+}
 
-    if(connect() <= 0) {
+
+int client_main() {
+    if(!init() || !connect()) {
         return -1;
     }
+
+    // run listener thread
+    pthread_t listener_tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_create(&listener_tid, &attr, &listener_thread, NULL);
 
     do {
         int x, y;

@@ -16,6 +16,7 @@ static void send_message(int player, int type, int x, int y, long player_id);
 
 static void shutdown();
 static void signal_handler(int);
+static void pipe_handler(int);
 static void send_message(int, int, int, int, long);
 static void wait_for_players(int);
 static void send_challenge(int, int);

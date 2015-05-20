@@ -49,7 +49,7 @@ static void *supervisor_thread(void *arg) {
     int old_cancel_type;
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old_cancel_type);
 
-    message_pack_t *message = wait_message(MESSAGE_ROUND_END);
+    message_pack_t *message = get_message(MESSAGE_ROUND_END);
     debug("killing answer thread (tid %d)\n", (int)a->answer_tid);
     pthread_cancel(a->answer_tid);
 

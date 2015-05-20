@@ -35,6 +35,11 @@ static void signal_handler(int signo) {
 }
 
 
+static void pipe_handler(int signo) {
+    debug("BROKEN PIPE!!! %s\n", "D:<");
+}
+
+
 // sends a message to the given player
 //  if player_id < 0 it will be filled with id of recipient
 static void send_message(int player, int type, int x, int y, long player_id) {
@@ -45,9 +50,16 @@ static void send_message(int player, int type, int x, int y, long player_id) {
         .player_id = player_id > 0 ? player_id : players[player].player_id
     };
 
-    int ret = write(players[player].fifo, &message, sizeof(message));
-    debug("sent message %d to player %d, ret %d errno %d\n", message.type,
-        player, ret, errno);
+    int ret = 0, count = 0;
+    while(count < 3 && ret <= 0) {
+        ret = write(players[player].fifo, &message, sizeof(message));
+        debug("sent message %d to player %d, ret %d errno %d try %d\n",
+            message.type, player, ret, errno, count);
+        count += 1;
+    }
+    
+    if(count == 3)
+        debug("failed to send message to client %d\n", player);
 }
 
 
@@ -178,7 +190,9 @@ int server_main(int max_players, int win_score) {
     printf("Accepting at most %d players, victory score is %d\n",
            max_players, win_score);
 
-    if(signal(SIGINT, signal_handler) == SIG_ERR) {
+    if(signal(SIGINT, signal_handler) == SIG_ERR ||
+        signal(SIGPIPE, pipe_handler) == SIG_ERR) {
+        
         perror("signal");
         exit(-1);
     }

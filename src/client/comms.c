@@ -19,7 +19,7 @@ static void handle_victory(long winner, int player_count) {
     // receive and print ranking
     int received = 0;
     while(received < player_count) {
-        message = wait_message(MESSAGE_RANKING);
+        message = get_message(MESSAGE_RANKING);
         int position = message->x,
             score = message->y;
 
@@ -38,55 +38,11 @@ static void handle_victory(long winner, int player_count) {
 }
 
 
-// default handler for messages
-static void handle_message(message_pack_t *message) {
-    if(message->type == MESSAGE_SERVER_QUIT) {
-        printf("Server has quit!\n");
-        free(message);
-
-        shutdown();
-        exit(0);
-    }
-    else if(message->type == MESSAGE_MATCH_END) {
-        handle_victory(message->player_id, message->x);
-        free(message);
-    }
-}
-
-
-// wait until a message of a given type arrives (remember to free)
-static message_pack_t *wait_message(int type) {
-    int received;
-    message_pack_t *message = malloc(sizeof(message_pack_t));
-    
-    do {
-        int fd = open(fifo, O_RDONLY);
-        read(fd, message, sizeof(message_pack_t));
-        close(fd);
-
-        debug("received message %d\n", message->type);
-        if(message->type & type) {
-            // if needed, check that we are the recipient
-            if(message->type & (MESSAGE_ANSWER_CORRECT | MESSAGE_ANSWER_WRONG)) {
-                if(message->player_id == player_id)
-                    received = 1;
-                else handle_message(message);
-            }
-            else received = 1;
-        }
-        else handle_message(message);
-
-        close(fd);
-    } while(!received);
-
-    return message;
-}
-
-
 // connect to server and wait for ack, return > 0 -> ok, < 0 -> fatal
 static long connect() {
-    int fd;
+    int fd, ret;
     connection_pack_t pack;
+    message_pack_t message;
 
     player_id = (long) getpid();
     printf("Our player id is %lu\n", player_id);
@@ -95,34 +51,36 @@ static long connect() {
     debug("creating fifo %s\n", fifo);
     if(mkfifo(fifo, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) != 0) {
         perror("mkfifo");
-        return -1;
+        return 0;
     }
 
     printf("Connecting to server...\n");
     if((fd = open(CONNECT_FIFO, O_WRONLY)) < 0) {
         perror("open");
         printf("No server running?\n");
-        return -1;
+        return 0;
     }
 
-    debug("sending connection request%s", "\n");
     pack.player_id = player_id;
     strcpy(pack.fifo, fifo);
-    write(fd, &pack, sizeof(pack));
+    ret = write(fd, &pack, sizeof(pack));
     close(fd);
+    debug("sent connection request, ret %d errno %d\n", ret, errno);
 
     debug("waiting for ack%s", "\n");  // FIXME hangs forever if server quits now
-    message_pack_t *message = wait_message(MESSAGE_CONNECTION_ACCEPTED |
-                                           MESSAGE_CONNECTION_REJECTED);
-    if(message->type == MESSAGE_CONNECTION_ACCEPTED) {
+    fd = open(fifo, O_RDONLY);
+    ret = read(fd, &message, sizeof(message));
+    close(fd);
+    debug("received message of type %d, ret %d errno %d\n", message.type,
+        ret, errno);
+    
+    if(message.type == MESSAGE_CONNECTION_ACCEPTED) {
         printf("Connected!\n");
-        free(message);
         return 1;
     }
     else { // if(message->type == MESSAGE_CONNECTION_REJECTED) {
         printf("Our connection was rejected!\n");
-        free(message);
-        return -1;
+        return 0;
     }
 }
 
