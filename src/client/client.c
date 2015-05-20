@@ -49,7 +49,7 @@ static void wait_challenge(int *x, int *y) {
 
 static void play_round(int x, int y) {
     message_pack_t *message;
-    int round_end, user_answered, answer;
+    int round_end = 0, user_answered, answer;
 
     
     do {
@@ -72,6 +72,7 @@ static void play_round(int x, int y) {
             }
             else {
                 printf("Wrong answer!\n");
+                round_end = 0;
             }
         }
         else {
