@@ -63,12 +63,12 @@ static int wait_challenge(int *x, int *y) {
 
 static void play_round(int x, int y) {
     message_pack_t *message;
-    int round_end = 0, user_answered, answer;
+    int round_end = 0, ret, answer;
     
     do {
-        user_answered = get_answer(&answer, x, y);
+        ret = get_answer(&answer, x, y);
 
-        if(user_answered) {
+        if(ret == 0) {
             // send answer to server and wait for ack
             answer_pack_t pack = { .player_id = player_id, .answer = answer };
             int fd = open(ANSWER_FIFO, O_WRONLY);
@@ -88,10 +88,11 @@ static void play_round(int x, int y) {
                 round_end = 0;
             }
         }
-        else {
+        else if(ret == 1) {
             printf("Another player gave the correct answer before you!\n");
             round_end = 1;
         }
+        else round_end = 1;
     } while(!round_end);
 }
 

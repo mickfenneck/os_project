@@ -23,7 +23,7 @@
 // useful macro for debugging
 FILE *debug_f;
 #define debug(fmt, ...) \
-    fprintf(debug_f, "\t[%s:%d pid %d] ", __func__, __LINE__, getpid()); \
+    fprintf(debug_f, "\t[%s:%d] ", __func__, __LINE__); \
     fprintf(debug_f, fmt, __VA_ARGS__);
 
 typedef struct {

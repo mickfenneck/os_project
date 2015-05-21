@@ -11,6 +11,7 @@ typedef struct {
     pthread_t supervisor_tid;
 
     int has_answer;
+    int other_answered;
     int answer;
 
     int x;
@@ -21,11 +22,13 @@ static ui_shared_t *ui_shared;
 
 // gets an answer from the player
 static void *answer_thread(void *arg) {
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     debug("answer thread running%s", "\n");
 
     char buffer[128], *ptr;
     do {
         printf("Challenge is %d + %d\nEnter your answer: ", ui_shared->x, ui_shared->y);
+        fflush(stdout);  // force write last line to stdout
         read(0, buffer, sizeof(buffer));
 
         ui_shared->answer = strtol(buffer, &ptr, 10);
@@ -53,22 +56,30 @@ static void supervisor_handler(int signo) {
 // kill answer thread when round ends
 static void *supervisor_thread(void *arg) {
     debug("supervisor thread running%s", "\n");
-    message_pack_t *message = get_message(MESSAGE_ROUND_END, 1);
-    if(message) {  // if someone sends a SIGKILL to stop us this will be NULL
-        debug("sending signal to answer process%s", "\n");
+    message_pack_t *message = get_message(MESSAGE_ROUND_END | MESSAGE_SERVER_QUIT, 1);
+
+    // if we receive a SIGUSR1 and wake up message will be NULL
+    if(message) {
+        if(message->type == MESSAGE_ROUND_END) {
+            debug("round end, killing answer thread%s", "\n");
+            ui_shared->other_answered = 1;
+        }
+        else debug("server quit, killing answer thread%s", "\n");
+
         pthread_cancel(ui_shared->answer_tid);
         free(message);
     }
-    else debug("killed by answer process%s", "\n");
+    else debug("killed by another process%s", "\n");
 
     return NULL;
 }
 
 
 // returns 1 if answer was given by user (and puts answer in *answer)
+// returns 0 if answer was given by user, 1 if by other player, 2 if cancelled
 static int get_answer(int *answer, int x, int y) {
     ui_shared = malloc(sizeof(ui_shared_t));
-    ui_shared->has_answer = ui_shared->answer = 0;
+    ui_shared->has_answer = ui_shared->answer = ui_shared->other_answered = 0;
     ui_shared->x = x;
     ui_shared->y = y;
 
@@ -82,7 +93,12 @@ static int get_answer(int *answer, int x, int y) {
 
     signal(SIGUSR1, SIG_DFL);
 
-    int ret = ui_shared->has_answer;
+    int ret;
+    if(ui_shared->has_answer)
+        ret = 0;
+    else if(ui_shared->other_answered)
+        ret = 1;
+    else ret = 2;
     *answer = ui_shared->answer;
 
     free(ui_shared);
@@ -95,6 +111,7 @@ static int get_answer(int *answer, int x, int y) {
 // cleanup
 static void stop_ui_processes() {
     if(ui_shared) {
+        debug("killing user input threads%s", "\n");
         pthread_kill(ui_shared->supervisor_tid, SIGUSR1);
         pthread_cancel(ui_shared->answer_tid);
         munmap(ui_shared, sizeof(ui_shared_t));

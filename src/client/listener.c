@@ -6,8 +6,11 @@
 static int on_message_received(message_pack_t *message) {
     int stop;
 
-    if(message->type == MESSAGE_SERVER_QUIT)
-        handle_message(message);
+    if(message->type == MESSAGE_SERVER_QUIT) {
+        printf("Server has quit!\n");
+        shutdown();
+        exit(0);
+    }
 
     pthread_mutex_lock(&shared.mutex);
     stop = shared.global_stop;
@@ -119,19 +122,7 @@ static message_pack_t *get_message(int type, int wait) {
 
 // default handler for messages
 static void handle_message(message_pack_t *message) {
-    debug("consuming message of type %d\n", message->type);
-    
-    if(message->type == MESSAGE_SERVER_QUIT) {
-        pthread_mutex_lock(&shared.mutex);
-        shared.global_stop = 1;
-        pthread_mutex_unlock(&shared.mutex);
-
-        disconnect();
-        shutdown();
-    }
-    else {
-        debug("ignoring a message of type %d\n", message->type)
-        free(message);
-    }
+    debug("consuming message of type %d with default handler\n", message->type);
+    free(message);
 }
 

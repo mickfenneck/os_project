@@ -25,14 +25,14 @@ static void shutdown() {
         debug("sent quit message (%d) to player %d, ret %d errno %d\n",
             MESSAGE_SERVER_QUIT, i, ret, errno);
     }
-    fifo_destroy();
-    exit(0);
 }
 
 
 static void signal_handler(int signo) {
     printf("Shutting down\n");
     shutdown();
+    fifo_destroy();
+    exit(0);
 }
 
 
@@ -199,9 +199,8 @@ int server_main(int max_players, int win_score) {
 
     wait_for_players(max_players);
     play(max_players, win_score);
-
-    shutdown();
     print_ranking();
+    fifo_destroy();
 
     return 0;
 }
