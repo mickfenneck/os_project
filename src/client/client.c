@@ -16,6 +16,7 @@
 
 
 static void shutdown() {
+    stop_ui_processes();
     unlink(fifo);
 }
 
@@ -50,7 +51,6 @@ static void wait_challenge(int *x, int *y) {
 static void play_round(int x, int y) {
     message_pack_t *message;
     int round_end = 0, user_answered, answer;
-
     
     do {
         user_answered = get_answer(&answer, x, y);
