@@ -1,6 +1,6 @@
 ARCH_NAME=LABSO2015_Progetto_multiplayer_game_165907_164492
 CFLAGS_STD=-Iinclude/ -std=gnu99 -pthread -Wall -Werror -pedantic -pedantic-errors
-ifeq ($(DEBUG),on)
+ifeq ($(debug),true)
 	CFLAGS=$(CFLAGS_STD) -g -DDEBUG
 else
 	CFLAGS=$(CFLAGS_STD)

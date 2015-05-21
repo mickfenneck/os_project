@@ -22,7 +22,8 @@ static void shutdown() {
     message_pack_t message = { .type = MESSAGE_SERVER_QUIT, .player_id = 0 };
     for(i = 0; i < player_count; i++) {
         ret = write(players[i].fifo, &message, sizeof(message));
-        debug("sent quit message to player %d, ret %d errno %d\n", i, ret, errno);
+        debug("sent quit message (%d) to player %d, ret %d errno %d\n",
+            MESSAGE_SERVER_QUIT, i, ret, errno);
     }
     fifo_destroy();
     exit(0);
@@ -50,16 +51,10 @@ static void send_message(int player, int type, int x, int y, long player_id) {
         .player_id = player_id > 0 ? player_id : players[player].player_id
     };
 
-    int ret = 0, count = 0;
-    while(count < 3 && ret <= 0) {
-        ret = write(players[player].fifo, &message, sizeof(message));
-        debug("sent message %d to player %d, ret %d errno %d try %d\n",
-            message.type, player, ret, errno, count);
-        count += 1;
-    }
-    
-    if(count == 3)
-        debug("failed to send message to client %d\n", player);
+    int ret = 0;
+    ret = write(players[player].fifo, &message, sizeof(message));
+    debug("sent message %d to player %d, ret %d errno %d\n",
+        message.type, player, ret, errno);
 }
 
 

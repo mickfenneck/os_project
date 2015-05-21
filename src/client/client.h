@@ -28,13 +28,13 @@ static long connect();
 static void signal_handler(int);
 static void shutdown();
 static int init();
-static void wait_challenge(int *, int *);
+static int wait_challenge(int *, int *);
 static void play_round(int, int);
 static int get_answer(int *, int, int);
 static void handle_victory(long, int);
 
 static void handle_message(message_pack_t *);
-static message_pack_t *get_message(int);
+static message_pack_t *get_message(int, int);
 static message_pack_t *get_from_old(int);
 static void *listener_thread(void *arg);
 

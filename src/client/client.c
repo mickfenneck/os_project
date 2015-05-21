@@ -36,15 +36,28 @@ static void signal_handler(int signo) {
 }
 
 
-// waits for a challenge from the server
-static void wait_challenge(int *x, int *y) {
+// waits for a challenge from the server, returns 1 if match has ended
+static int wait_challenge(int *x, int *y) {
+    int end = 0;
+
     printf("Waiting for challenge...\n");
-    message_pack_t *message = get_message(MESSAGE_CHALLENGE);
+    message_pack_t *message = get_message(MESSAGE_CHALLENGE | MESSAGE_MATCH_END, 1);
 
-    *x = message->x;
-    *y = message->y;
+    pthread_mutex_lock(&shared.mutex);
+    end |= shared.global_stop;
+    pthread_mutex_unlock(&shared.mutex);
 
-    free(message);
+    if(message->type == MESSAGE_CHALLENGE) {
+        *x = message->x;
+        *y = message->y;
+        free(message);
+    }
+    else {
+        handle_victory(message->player_id, message->x);
+        end = 1;
+    }
+
+    return end;
 }
 
 
@@ -62,12 +75,12 @@ static void play_round(int x, int y) {
             write(fd, &pack, sizeof(pack));
             close(fd);
 
-            message = get_message(MESSAGE_ANSWER_CORRECT | MESSAGE_ANSWER_WRONG);
+            message = get_message(MESSAGE_ANSWER_CORRECT | MESSAGE_ANSWER_WRONG, 1);
 
             // wait_message has already checked that the message was directed at us
             if(message->type == MESSAGE_ANSWER_CORRECT) {
                 printf("Answer is correct!\n");
-                message = get_message(MESSAGE_ROUND_END);
+                message = get_message(MESSAGE_ROUND_END, 1);
                 round_end = 1;
             }
             else {
@@ -110,11 +123,18 @@ int client_main() {
     pthread_attr_init(&attr);
     pthread_create(&listener_tid, &attr, &listener_thread, NULL);
 
+    int end = 0;
     do {
+
         int x, y;
-        wait_challenge(&x, &y);
-        play_round(x, y);
-    } while(1);  // exit will be called upon receiving MESSAGE_SERVER_QUIT
+        end = wait_challenge(&x, &y);
+        if(!end)
+            play_round(x, y);
+
+    } while(!end);
 
     disconnect();
+    shutdown();
+
+    return 0;
 }

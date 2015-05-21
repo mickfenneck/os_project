@@ -2,57 +2,65 @@
 #include "client.h"
 
 
-// continuously listens for messages from server, appending them to the
-// received queue. wakes up waiting thread if needed
+// handle a message, appending it to the received queue and waking up waiting thread if needed
+static int on_message_received(message_pack_t *message) {
+    int stop;
+
+    if(message->type == MESSAGE_SERVER_QUIT)
+        handle_message(message);
+
+    pthread_mutex_lock(&shared.mutex);
+    stop = shared.global_stop;
+
+    // put message in queue
+    if(!shared.messages) {
+        shared.messages = malloc(sizeof(message_queue_t));
+        shared.messages->message = message;
+        shared.messages->next = NULL;
+    }
+    else {
+        message_queue_t *cursor = shared.messages;
+        while(cursor->next)
+            cursor = cursor->next;
+        cursor->next = malloc(sizeof(message_queue_t));
+        cursor->next->message = message;
+        cursor->next->next = NULL;
+    }
+
+    // if needed wake up waiting thread
+    if(message->type & shared.waiting_type) {
+        debug("waking up waiting thread%s", "\n");
+        shared.waiting_type = 0;
+        pthread_mutex_unlock(&shared.waiting);
+    }
+    pthread_mutex_unlock(&shared.mutex);
+
+    return stop;
+}
+
+
+// continuously listens for messages from server
 static void *listener_thread(void *arg) {
     message_pack_t *message;
-    int stop;
+    int stop, ret, fd;
     
     debug("listener thread running with id %lu\n", (long) pthread_self());
     
     do {
-        message = malloc(sizeof(message_pack_t));
-        
-        int fd = open(fifo, O_RDONLY);
-        int ret = read(fd, message, sizeof(message_pack_t));
-        close(fd);
-        
-        debug("received message %d from server, ret %d errno %d\n", message->type,
-            ret, errno);
-        
-        pthread_mutex_lock(&shared.mutex);
-        if(message->type == MESSAGE_SERVER_QUIT) {
-            shared.global_stop = 1;
-            pthread_mutex_unlock(&shared.mutex);
+        stop = 0;
+        fd = open(fifo, O_RDONLY);
 
-            disconnect();
-            shutdown();
-            exit(0);
-        }
-        stop = shared.global_stop;
-        
-        // put message in queue
-        if(!shared.messages) {
-            shared.messages = malloc(sizeof(message_queue_t));
-            shared.messages->message = message;
-            shared.messages->next = NULL;
-        }
-        else {
-            message_queue_t *cursor = shared.messages;
-            while(cursor->next)
-                cursor = cursor->next;
-            cursor->next = malloc(sizeof(message_queue_t));
-            cursor->next->message = message;
-            cursor->next->next = NULL;
-        }        
-        
-        // if needed wake up waiting thread
-        if(message->type & shared.waiting_type) {
-            debug("waking up waiting thread%s", "\n");
-            shared.waiting_type = 0;
-            pthread_mutex_unlock(&shared.waiting);
-        }
-        pthread_mutex_unlock(&shared.mutex);
+        do {
+            message = malloc(sizeof(message_pack_t));
+            ret = read(fd, message, sizeof(message_pack_t));
+
+            debug("received message %d from server, ret %d errno %d\n", message->type,
+                ret, errno);
+
+            stop |= on_message_received(message);
+        } while(ret > 0);
+
+        close(fd);
     } while(!stop);
 
     debug("listener thread has quit%s", "\n");
@@ -84,8 +92,7 @@ static message_pack_t *get_from_old(int type) {
 
 
 // get the first available message of the given type
-// might block if the message has not been received (but not consumed) yet.
-static message_pack_t *get_message(int type) {
+static message_pack_t *get_message(int type, int wait) {
     pthread_mutex_lock(&shared.mutex);
     
     message_pack_t *message = get_from_old(type);
@@ -93,7 +100,7 @@ static message_pack_t *get_message(int type) {
         pthread_mutex_unlock(&shared.mutex);
         return message;
     }
-    else {
+    else if(wait) {
         debug("waiting for message of type %d...\n", type);
         shared.waiting_type = type;
         pthread_mutex_unlock(&shared.mutex);
@@ -106,6 +113,7 @@ static message_pack_t *get_message(int type) {
 
         return message;
     }
+    else return NULL;
 }
 
 
@@ -114,15 +122,16 @@ static void handle_message(message_pack_t *message) {
     debug("consuming message of type %d\n", message->type);
     
     if(message->type == MESSAGE_SERVER_QUIT) {
-        printf("Server has quit!\n");
-        free(message);
+        pthread_mutex_lock(&shared.mutex);
+        shared.global_stop = 1;
+        pthread_mutex_unlock(&shared.mutex);
 
-        exit(0);
+        disconnect();
+        shutdown();
     }
-    else if(message->type == MESSAGE_MATCH_END) {
-        handle_victory(message->player_id, message->x);
+    else {
+        debug("ignoring a message of type %d\n", message->type)
         free(message);
     }
-    else debug("ignoring a message of type %d\n", message->type);
 }
 

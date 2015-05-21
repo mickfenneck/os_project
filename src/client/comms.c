@@ -19,7 +19,7 @@ static void handle_victory(long winner, int player_count) {
     // receive and print ranking
     int received = 0;
     while(received < player_count) {
-        message = get_message(MESSAGE_RANKING);
+        message = get_message(MESSAGE_RANKING, 1);
         int position = message->x,
             score = message->y;
 
@@ -32,7 +32,7 @@ static void handle_victory(long winner, int player_count) {
                 position, message->player_id, score);
         }
 
-        received = message->x;
+        received = message->x + 1;
         free(message);
     }
 }

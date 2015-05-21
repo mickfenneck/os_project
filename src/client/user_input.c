@@ -19,11 +19,6 @@ typedef struct {
 static ui_shared_t *ui_shared;
 
 
-static void answer_handler(int signo) {
-    debug("received signal %d\n", signo);
-    pthread_exit(NULL); // have to check that I am answer thread?
-}
-
 // gets an answer from the player
 static void *answer_thread(void *arg) {
     debug("answer thread running%s", "\n");
@@ -31,8 +26,10 @@ static void *answer_thread(void *arg) {
     char buffer[128], *ptr;
     do {
         printf("Challenge is %d + %d\nEnter your answer: ", ui_shared->x, ui_shared->y);
-        fgets(buffer, sizeof(buffer), stdin);
+        read(0, buffer, sizeof(buffer));
+
         ui_shared->answer = strtol(buffer, &ptr, 10);
+        debug("answer %d\n", ui_shared->answer);
     } while(ptr[0] != '\n' && ui_shared->answer >= 0);
 
     debug("killing supervisor process%s", "\n");
@@ -50,18 +47,17 @@ static void supervisor_handler(int signo) {
     shared.waiting_type = 0;
     pthread_mutex_unlock(&shared.waiting);
     pthread_mutex_unlock(&shared.mutex);
-
-    //pthread_exit(NULL);
 }
 
 
 // kill answer thread when round ends
 static void *supervisor_thread(void *arg) {
     debug("supervisor thread running%s", "\n");
-    message_pack_t *message = get_message(MESSAGE_ROUND_END);
+    message_pack_t *message = get_message(MESSAGE_ROUND_END, 1);
     if(message) {  // if someone sends a SIGKILL to stop us this will be NULL
         debug("sending signal to answer process%s", "\n");
-        pthread_kill(ui_shared->answer_tid, SIGUSR2);
+        pthread_cancel(ui_shared->answer_tid);
+        free(message);
     }
     else debug("killed by answer process%s", "\n");
 
@@ -77,7 +73,6 @@ static int get_answer(int *answer, int x, int y) {
     ui_shared->y = y;
 
     signal(SIGUSR1, supervisor_handler);
-    signal(SIGUSR2, answer_handler);
 
     pthread_create(&ui_shared->answer_tid, NULL, &answer_thread, NULL);
     pthread_create(&ui_shared->supervisor_tid, NULL, &supervisor_thread, NULL);
@@ -86,7 +81,6 @@ static int get_answer(int *answer, int x, int y) {
     pthread_join(ui_shared->supervisor_tid, NULL);
 
     signal(SIGUSR1, SIG_DFL);
-    signal(SIGUSR2, SIG_DFL);
 
     int ret = ui_shared->has_answer;
     *answer = ui_shared->answer;
@@ -102,7 +96,7 @@ static int get_answer(int *answer, int x, int y) {
 static void stop_ui_processes() {
     if(ui_shared) {
         pthread_kill(ui_shared->supervisor_tid, SIGUSR1);
-        pthread_kill(ui_shared->answer_tid, SIGUSR2);
+        pthread_cancel(ui_shared->answer_tid);
         munmap(ui_shared, sizeof(ui_shared_t));
     }
 }
