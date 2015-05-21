@@ -2,6 +2,7 @@
 #define __CONST_H__
 
 #include <unistd.h>
+#include <stdio.h>
 
 #define DISCONNECT_FIFO "/tmp/sisop-disconnect"
 #define CONNECT_FIFO "/tmp/sisop-connect"
@@ -20,13 +21,10 @@
 #define MESSAGE_RANKING             1<<9
 
 // useful macro for debugging
-#ifdef DEBUG
-    #define debug(fmt, ...) \
-        fprintf(stderr, "\t[%s:%d pid %d] ", __func__, __LINE__, getpid()); \
-        fprintf(stderr, fmt, __VA_ARGS__);
-#else
-    #define debug(fmt, ...)
-#endif
+FILE *debug_f;
+#define debug(fmt, ...) \
+    fprintf(debug_f, "\t[%s:%d pid %d] ", __func__, __LINE__, getpid()); \
+    fprintf(debug_f, fmt, __VA_ARGS__);
 
 typedef struct {
     long player_id;

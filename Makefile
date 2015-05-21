@@ -1,8 +1,10 @@
-DEBUG_FLAGS=-g -DDEBUG
-WARNING_FLAGS=-Wall -Werror -pedantic -pedantic-errors
-STD_FLAGS=-Iinclude/ -std=gnu99 -pthread
-CFLAGS=$(STD_FLAGS) $(WARNING_FLAGS) $(DEBUG_FLAGS)
 ARCH_NAME=LABSO2015_Progetto_multiplayer_game_165907_164492
+CFLAGS_STD=-Iinclude/ -std=gnu99 -pthread -Wall -Werror -pedantic -pedantic-errors
+ifeq ($(DEBUG),on)
+	CFLAGS=$(CFLAGS_STD) -g -DDEBUG
+else
+	CFLAGS=$(CFLAGS_STD)
+endif
 
 default:
 	@echo "Available commands:"

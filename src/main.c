@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "const.h"
+
 
 extern int server_main(int, int);
 extern int client_main();
@@ -54,6 +56,12 @@ int launch_client(int argc, char *args[]) {
 
 
 int main(int argc, char *argv[]) {
+	#ifdef DEBUG
+	debug_f = stderr;
+	#else
+	debug_f = fopen("/dev/null", "w");
+	#endif
+
     if(argc < 2) {
         print_usage(argv);
         exit(-1);
