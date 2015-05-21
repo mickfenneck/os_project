@@ -24,6 +24,10 @@ static void *listener_thread(void *arg) {
         if(message->type == MESSAGE_SERVER_QUIT) {
             shared.global_stop = 1;
             pthread_mutex_unlock(&shared.mutex);
+
+            disconnect();
+            shutdown();
+            exit(0);
         }
         stop = shared.global_stop;
         
@@ -113,7 +117,6 @@ static void handle_message(message_pack_t *message) {
         printf("Server has quit!\n");
         free(message);
 
-        shutdown();
         exit(0);
     }
     else if(message->type == MESSAGE_MATCH_END) {
