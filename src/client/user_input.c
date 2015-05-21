@@ -101,8 +101,8 @@ static int get_answer(int *answer, int x, int y) {
 // cleanup
 static void stop_ui_processes() {
     if(ui_shared) {
-        kill(ui_shared->supervisor_tid, SIGUSR1);
-        kill(ui_shared->answer_tid, SIGUSR2);
+        pthread_kill(ui_shared->supervisor_tid, SIGUSR1);
+        pthread_kill(ui_shared->answer_tid, SIGUSR2);
         munmap(ui_shared, sizeof(ui_shared_t));
     }
 }
