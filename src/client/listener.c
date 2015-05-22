@@ -123,6 +123,12 @@ static message_pack_t *get_message(int type, int wait) {
 // default handler for messages
 static void handle_message(message_pack_t *message) {
     debug("consuming message of type %d with default handler\n", message->type);
+
+    if(message->type == MESSAGE_PLAYER_CONNECTED)
+        printf("Player %lu has joined the game\n", message->player_id);
+    else if(message->type == MESSAGE_PLAYER_DISCONNECTED)
+        printf("Player %lu has left the game\n", message->player_id);
+
     free(message);
 }
 

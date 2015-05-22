@@ -19,6 +19,8 @@
 #define MESSAGE_CONNECTION_REJECTED 1<<7
 #define MESSAGE_ROUND_END           1<<8
 #define MESSAGE_RANKING             1<<9
+#define MESSAGE_PLAYER_CONNECTED    1<<10
+#define MESSAGE_PLAYER_DISCONNECTED 1<<11
 
 // useful macro for debugging
 FILE *debug_f;

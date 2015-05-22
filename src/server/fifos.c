@@ -45,7 +45,7 @@ static void fifo_destroy() {
 
 // accept all pending connections
 static void accept_connections(player_info_t *players, int *player_count, int max_players) {
-    int ret, fd;
+    int ret, fd, i;
     connection_pack_t pack;
     message_pack_t message;
 
@@ -68,6 +68,8 @@ static void accept_connections(player_info_t *players, int *player_count, int ma
                 players[*player_count].fifo = fd;
 
                 send_message(*player_count, MESSAGE_CONNECTION_ACCEPTED, 0, 0, -1);
+                for(i = 0; i < *player_count; i++)
+                    send_message(i, MESSAGE_PLAYER_CONNECTED, 0, 0, pack.player_id);
 
                 printf("Player %lu connected (%d players connected)\n",
                     players[*player_count].player_id, *player_count + 1);
@@ -106,6 +108,8 @@ static void accept_disconnections(player_info_t *players, int *player_count) {
                 players[i] = players[i + 1];
             *player_count -= 1;
             printf("Player %lu disconnected.\n", players[i].player_id);
+            for(i = 0; i < *player_count; i++)
+                send_message(i, MESSAGE_PLAYER_DISCONNECTED, 0, 0, player_id);
         }
         else {
             debug("Unknown disconnection message from player %lu\n", player_id);
