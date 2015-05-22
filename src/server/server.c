@@ -185,7 +185,11 @@ int server_main(int max_players, int win_score) {
     printf("Accepting at most %d players, victory score is %d\n",
            max_players, win_score);
 
+    // clean up resources and alert server in case of abnormal termination
     if(signal(SIGINT, signal_handler) == SIG_ERR ||
+        signal(SIGQUIT, signal_handler) == SIG_ERR ||
+        signal(SIGHUP, signal_handler) == SIG_ERR ||
+        signal(SIGTERM, signal_handler) == SIG_ERR ||
         signal(SIGPIPE, pipe_handler) == SIG_ERR) {
         
         perror("signal");

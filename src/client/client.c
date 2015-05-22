@@ -98,7 +98,12 @@ static void play_round(int x, int y) {
 
 
 static int init() {
-    if(signal(SIGINT, signal_handler) == SIG_ERR) {
+    // clean up resources and alert server in case of abnormal termination
+    if(signal(SIGINT, signal_handler) == SIG_ERR ||
+        signal(SIGQUIT, signal_handler) == SIG_ERR ||
+        signal(SIGHUP, signal_handler) == SIG_ERR ||
+        signal(SIGTERM, signal_handler) == SIG_ERR) {
+
         perror("signal");
         return 0;
     }
