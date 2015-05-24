@@ -95,7 +95,6 @@ static void *supervisor_thread(void *arg) {
 }
 
 
-// returns 1 if answer was given by user (and puts answer in *answer)
 // returns 0 if answer was given by user, 1 if by other player, 2 if cancelled
 static int get_answer(int *answer, int x, int y) {
     ui_shared = malloc(sizeof(ui_shared_t));

@@ -33,7 +33,11 @@ int main(int argc, char *argv[]) {
             y = rand() % 100,
             correct = x + y;
 
-        fprintf(fds[0], "%d\n%d\n", x, y);
+        // server quits with probability 0.05
+        if(rand() % 100 < 5)
+            fprintf(fds[0], "-1\n2\n");
+        else
+            fprintf(fds[0], "%d\n%d\n", x, y);
 
         // generate some answers until one is correct
         int someone_correct = 0;
@@ -49,7 +53,7 @@ int main(int argc, char *argv[]) {
                 else answer = rand() % 100;
                 fprintf(fds[1 + j], "sleep %d\n%d\n", sleep, answer);
 
-                // client quit with probability 0.05
+                // client quits with probability 0.05
                 if(rand() % 100 < 5)
                     fprintf(fds[1 + j], "signal 2\n");
             }
