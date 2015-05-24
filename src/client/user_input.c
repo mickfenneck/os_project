@@ -1,3 +1,11 @@
+/****
+ * Multiplayer Game
+ * Progetto Sistemi Operativi 2015
+ *
+ * Dorigatti Emilio - 165907
+ * Sordo Michele - 164492
+ ****/
+
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/mman.h>
