@@ -1,9 +1,9 @@
 ARCH_NAME=LABSO2015_Progetto_multiplayer_game_165907_164492
-CFLAGS_STD=-Iinclude/ -std=gnu99 -pthread -Wall -Werror -pedantic -pedantic-errors
+CFLAGS_BASE=-Iinclude/ -std=gnu99 -pthread -Wall -Werror -pedantic -pedantic-errors
 ifeq ($(debug),true)
-	CFLAGS=$(CFLAGS_STD) -g -DDEBUG
+	CFLAGS=$(CFLAGS_BASE) -g -DDEBUG
 else
-	CFLAGS=$(CFLAGS_STD)
+	CFLAGS=$(CFLAGS_BASE)
 endif
 
 default:
@@ -14,15 +14,15 @@ default:
 	@echo " - tar: make source archive"
 	
 bin: clean client server
-	[ -d bin ] || mkdir bin
+	mkdir -p bin
 	gcc $(CFLAGS) lib/server.o lib/client.o src/main.c -o bin/main.out
 
 server:
-	[ -d lib ] || mkdir lib
+	mkdir -p lib
 	gcc $(CFLAGS) -c src/server/server.c -o lib/server.o
 
 client:
-	[ -d lib ] || mkdir lib
+	mkdir -p lib
 	gcc $(CFLAGS) -c src/client/client.c -o lib/client.o
 
 clean:
@@ -30,6 +30,6 @@ clean:
 
 tar: clean
 	mkdir $(ARCH_NAME)
-	cp -R 	src include Makefile $(ARCH_NAME)
+	cp -R src include Makefile $(ARCH_NAME)
 	tar zcvf $(ARCH_NAME).tar.gz $(ARCH_NAME)
 	rm -rf $(ARCH_NAME)
