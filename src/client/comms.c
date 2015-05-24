@@ -6,6 +6,7 @@
  * Sordo Michele - 164492
  ****/
 
+#include <pthread.h>
 #include "client.h"
 
 char fifo[FIFO_NAME_LENGTH];

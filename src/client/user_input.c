@@ -56,7 +56,7 @@ static void supervisor_handler(int signo) {
     debug("received signal %d\n", signo);
     pthread_mutex_lock(&shared.mutex);  // global client shared
     shared.waiting_type = 0;
-    pthread_mutex_unlock(&shared.waiting);
+    pthread_mutex_unlock(&shared.waiting);  // unlock the supervisor thread
     pthread_mutex_unlock(&shared.mutex);
 }
 
@@ -122,6 +122,10 @@ static void stop_ui_processes() {
         debug("killing user input threads%s", "\n");
         pthread_kill(ui_shared->supervisor_tid, SIGUSR1);
         pthread_cancel(ui_shared->answer_tid);
-        munmap(ui_shared, sizeof(ui_shared_t));
+
+        pthread_join(ui_shared->answer_tid, NULL);
+        pthread_join(ui_shared->supervisor_tid, NULL);
+
+        free(ui_shared);
     }
 }

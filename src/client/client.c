@@ -126,16 +126,38 @@ static int init() {
 }
 
 
+static pthread_t start_listener() {
+    pthread_t listener_tid;
+
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_create(&listener_tid, &attr, &listener_thread, NULL);
+    pthread_attr_destroy(&attr);
+
+    return listener_tid;
+}
+
+
+static void stop_listener(pthread_t tid) {
+    pthread_mutex_lock(&shared.mutex);
+    shared.global_stop = 1;
+    pthread_mutex_unlock(&shared.mutex);
+
+    // listener is blocked on an open
+    int fd = open(fifo, O_WRONLY);
+    write(fd, "", 0);
+    close(fd);
+
+    pthread_join(tid, NULL);
+}
+
+
 int client_main() {
     if(!init() || !connect()) {
         return -1;
     }
 
-    // run listener thread
-    pthread_t listener_tid;
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_create(&listener_tid, &attr, &listener_thread, NULL);
+    pthread_t listener_tid = start_listener();
 
     int end = 0;
     do {
@@ -147,6 +169,7 @@ int client_main() {
 
     } while(!end);
 
+    stop_listener(listener_tid);
     disconnect();
     shutdown();
 

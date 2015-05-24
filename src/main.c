@@ -84,4 +84,8 @@ int main(int argc, char *argv[]) {
         print_usage(argv);
         exit(-1);
     }
+
+    #ifndef DEBUG
+    fclose(debug_f);
+    #endif
 }
