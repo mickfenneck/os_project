@@ -3,3 +3,6 @@
 *.o
 *.img
 *.tar.gz
+assets/*
+lib/*
+bin/*

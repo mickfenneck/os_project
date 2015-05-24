@@ -88,12 +88,19 @@ static void send_challenge(int x, int y) {
 }
 
 
-// generates a random challenge
+// generates a challenge
 static void get_challenge(int *x, int *y, int *correct) {
+    #ifdef TEST
+    scanf("%d", x);
+    scanf("%d", y);
+    if(*x < 0)
+        kill(getpid(), *y);
+    #else
     *x = rand() % 100;
     *y = rand() % 100;
-    *correct = *x + *y;
+    #endif
 
+    *correct = *x + *y;
     debug("challenge is %d + %d\n", *x, *y);
 }
 

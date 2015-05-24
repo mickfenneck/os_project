@@ -7,6 +7,7 @@
  ****/
 
 #include <unistd.h>
+#include <string.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
@@ -37,11 +38,22 @@ static void *answer_thread(void *arg) {
     do {
         printf("Challenge is %d + %d\nEnter your answer: ", ui_shared->x, ui_shared->y);
         fflush(stdout);  // force write last line to stdout
-        read(0, buffer, sizeof(buffer));
+
+        ptr = buffer;  // read until newline
+        while((ptr - buffer) < sizeof(buffer) - 1 && read(0, ptr, 1) > 0 && *ptr != '\n')
+            ptr++;
+        ptr[1] = '\0';
+
+        #ifdef TEST
+        int num;
+        if(strncmp("signal", buffer, 6) == 0 && (num = atoi(buffer + 6)) > 0)
+            kill(getpid(), num);
+        if(strncmp("sleep", buffer, 5) == 0 && (num = atoi(buffer + 5)) > 0)
+            sleep(num);
+        #endif
 
         ui_shared->answer = strtol(buffer, &ptr, 10);
-        debug("answer %d\n", ui_shared->answer);
-    } while(ptr[0] != '\n' && ui_shared->answer >= 0);
+    } while(ptr == buffer);
 
     debug("killing supervisor process%s", "\n");
     ui_shared->has_answer = 1;
