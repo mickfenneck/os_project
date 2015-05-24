@@ -31,19 +31,26 @@ long player_id;
 client_shared_t shared;
 
 
-static void disconnect();
-static long connect();
-static void signal_handler(int);
-static void shutdown();
-static int init();
-static int wait_challenge(int *, int *);
-static void play_round(int, int);
-static int get_answer(int *, int, int);
-static void handle_victory(long, int);
-
-static void handle_message(message_pack_t *);
-static message_pack_t *get_message(int, int);
-static message_pack_t *get_from_old(int);
+static int on_message_received(message_pack_t *message);
 static void *listener_thread(void *arg);
+static message_pack_t *get_from_old(int type);
+static message_pack_t *get_message(int type, int wait);
+static void handle_message(message_pack_t *message);
+static void *answer_thread(void *arg);
+static void supervisor_handler(int signo);
+static void *supervisor_thread(void *arg);
+static int get_answer(int *answer, int x, int y);
+static void stop_ui_processes();
+static void shutdown();
+static void disconnect();
+static void signal_handler(int signo);
+static int wait_challenge(int *x, int *y);
+static void play_round(int x, int y);
+static int init();
+static pthread_t start_listener();
+static void stop_listener(pthread_t tid);
+static void handle_victory(long winner, int player_count);
+static long connect();
+
 
 #endif

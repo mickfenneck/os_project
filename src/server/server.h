@@ -23,20 +23,22 @@ static void send_message(int player, int type, int x, int y, long player_id);
 
 
 static void shutdown();
-static void signal_handler(int);
-static void pipe_handler(int);
-static void send_message(int, int, int, int, long);
-static void wait_for_players(int);
-static void send_challenge(int, int);
-static void get_challenge(int *, int *, int *);
+static void signal_handler(int signo);
+static void pipe_handler(int signo);
+static void send_message(int player, int type, int x, int y, long player_id);
+static void wait_for_players(int max_players);
+static void send_challenge(int x, int y);
+static void get_challenge(int *x, int *y, int *correct);
 static int print_ranking();
-static void play_round(int, int);
-static void play(int, int);
+static void play_round(int max_players, int correct);
+static void match_end(int winner);
+static void play(int max_players, int win_score);
+static int connect_fifo, disconnect_fifo, answer_fifo;
 static int fifo_init();
 static void fifo_destroy();
-static int accept_answer();
-static void accept_connections(player_info_t *, int *, int);
-static void accept_disconnections(player_info_t *, int *);
-static int accept_answer(player_info_t *, int);
+static void accept_connections(player_info_t *players, int *player_count, int max_players);
+static void accept_disconnections(player_info_t *players, int *player_count);
+static int accept_answer(player_info_t *players, int player_count);
+
 
 #endif
